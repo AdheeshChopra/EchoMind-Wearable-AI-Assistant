@@ -24,6 +24,12 @@
           "microphonePermission": "EchoMind needs access to your microphone to transcribe your voice."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e183b778-c783-4445-8cd6-8ae59ed24e8c"
+      }
+    }
   }
 }

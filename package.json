@@ -1,12 +1,12 @@
 {
   "name": "echomind-ai",
   "version": "1.0.0",
-  "packageManager": "npm@11.1.2",
   "private": true,
   "workspaces": [
     "packages/*",
     "server",
-    "client"
+    "client",
+    "mobile"
   ],
   "scripts": {
     "build": "turbo run build",
