@@ -1,0 +1,11 @@
+[setup]
+pkgs = ["nodejs_22", "openssl", "ffmpeg"]
+
+[install]
+cmds = ["npm install"]
+
+[build]
+cmds = ["npx prisma generate", "npx tsc"]
+
+[start]
+cmd = "node dist/index.js"
