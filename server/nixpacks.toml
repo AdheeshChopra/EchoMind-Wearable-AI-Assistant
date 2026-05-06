@@ -1,11 +1,15 @@
 [setup]
 pkgs = ["nodejs_22", "openssl", "ffmpeg"]
 
+[variables]
+NODE_ENV = "production"
+NIXPACKS_NODE_VERSION = "22"
+
 [install]
-cmds = ["npm install"]
+cmds = ["npm ci --prefer-offline --no-audit --no-fund"]
 
 [build]
-cmds = ["npx prisma generate", "npx tsc"]
+cmds = ["npx prisma generate", "npm run build"]
 
 [start]
-cmd = "node dist/index.js"
+cmd = "npm start"

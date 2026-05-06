@@ -21,6 +21,7 @@
     "db:studio": "cd server && npx prisma studio"
   },
   "devDependencies": {
+    "react-native": "^0.74.5",
     "turbo": "^2.5.0"
   }
 }

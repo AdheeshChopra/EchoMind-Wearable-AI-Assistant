@@ -42,6 +42,9 @@ Thumbs.db
 server/prisma/dev.db
 server/prisma/dev.db-journal
 
+# CRG
+.code-review-graph/
+
 # Logs
 npm-debug.log*
 yarn-debug.log*

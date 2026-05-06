@@ -10,3 +10,12 @@ ios/
 .bundle/
 .next/
 out/
+client/
+server/
+packages/
+services/
+adapters/
+docs/
+client_old/
+gsd-template/
+scripts/
