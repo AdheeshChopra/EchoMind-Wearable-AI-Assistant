@@ -1,12 +1,26 @@
 {
   "name": "echomind-ai",
   "version": "1.0.0",
+  "packageManager": "npm@11.1.2",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "server",
+    "client"
+  ],
   "scripts": {
-    "build": "cd server && yarn && yarn build",
-    "start": "cd server && node dist/index.js"
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "dev:server": "turbo run dev --filter=echomind-server",
+    "dev:client": "turbo run dev --filter=client",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
+    "clean": "turbo run clean",
+    "db:migrate": "cd server && npx prisma migrate dev",
+    "db:generate": "cd server && npx prisma generate",
+    "db:studio": "cd server && npx prisma studio"
   },
-  "dependencies": {
-    "@google/genai": "^1.50.0",
-    "axios": "^1.15.2"
+  "devDependencies": {
+    "turbo": "^2.5.0"
   }
 }

@@ -10,6 +10,6 @@ export default defineConfig({
     datasource: {
         // We use a fallback string here to prevent the 'PrismaConfigEnvError' crash.
         // If the URL is missing, Prisma will give a much clearer error later.
-        url: dbUrl || "postgres://error:missing_url_in_env@localhost:5432/error",
+        url: process.env.DIRECT_URL || process.env.DATABASE_URL || "postgres://error:missing_url_in_env@localhost:5432/error",
     },
 });

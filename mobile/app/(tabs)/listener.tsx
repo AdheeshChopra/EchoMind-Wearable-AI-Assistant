@@ -1,41 +1,80 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { 
+  View, 
+  Text, 
+  ScrollView, 
+  StyleSheet, 
+  TouchableOpacity, 
+  Dimensions, 
+  Pressable 
+} from 'react-native';
 import { OrbVisualizer } from '../../components/OrbVisualizer';
-import { Wifi, WifiOff, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react-native';
+import { VoiceSettingsPanel } from '../../components/VoiceSettingsPanel';
+import { 
+  Wifi, 
+  WifiOff, 
+  CheckCircle, 
+  AlertCircle, 
+  RefreshCw, 
+  Settings as SettingsIcon,
+  Zap,
+  ZapOff
+} from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEchoMindVoice } from '../../hooks/useEchoMindVoice';
 import { EchoMindSocket } from '../../lib/socket';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { getVoiceSettings } from '../../lib/voiceSettings';
+import Animated, { 
+  FadeIn, 
+  FadeOut, 
+  SlideInUp, 
+  SlideOutDown,
+  useAnimatedStyle,
+  withSpring,
+  useSharedValue
+} from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
 
 export default function ListenerScreen() {
-  const { isRecording, audioLevel, partialTranscript, sentences, error: voiceError, startRecording, stopRecording } = useEchoMindVoice();
-  const [wsStatus, setWsStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
-  const [memoryStatus, setMemoryStatus] = useState<'idle' | 'analyzing' | 'saved'>('idle');
+  const { 
+    captureState, 
+    captureMode,
+    audioLevel, 
+    partialTranscript, 
+    sentences, 
+    error: voiceError,
+    enableAutoMode,
+    togglePassiveMode,
+    startInstantRecord,
+    stopInstantRecord,
+    disableCapture,
+    dismissError
+  } = useEchoMindVoice();
 
+  const [wsStatus, setWsStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
+  const [showSettings, setShowSettings] = useState(false);
+  const orbScale = useSharedValue(1);
+
+  // Initialize socket and auto-mode if enabled
   useEffect(() => {
     const socket = EchoMindSocket.getInstance();
 
     const onConnecting = () => setWsStatus('connecting');
-    const onConnected = () => setWsStatus('connected');
+    const onConnected = () => {
+      setWsStatus('connected');
+      // If auto-mode is enabled in settings, start it
+      const settings = getVoiceSettings();
+      if (settings.autoModeEnabled && captureState === 'idle') {
+        enableAutoMode();
+      }
+    };
     const onDisconnected = () => setWsStatus('disconnected');
-    const onStatusChange = (data: any) => {
-      if (data.status === 'analyzing') setMemoryStatus('analyzing');
-    };
-    const onMemorySaved = () => {
-      setMemoryStatus('saved');
-      setTimeout(() => {
-        setMemoryStatus(current => current === 'saved' ? 'idle' : current);
-      }, 2000);
-    };
 
     socket.on('connecting', onConnecting);
     socket.on('connected', onConnected);
     socket.on('disconnected', onDisconnected);
     socket.on('reconnect_failed', onDisconnected);
-    socket.on('STATUS_CHANGE', onStatusChange);
-    socket.on('MEMORY_SAVED', onMemorySaved);
 
     socket.connect();
 
@@ -44,8 +83,6 @@ export default function ListenerScreen() {
       socket.off('connected', onConnected);
       socket.off('disconnected', onDisconnected);
       socket.off('reconnect_failed', onDisconnected);
-      socket.off('STATUS_CHANGE', onStatusChange);
-      socket.off('MEMORY_SAVED', onMemorySaved);
     };
   }, []);
 
@@ -53,8 +90,26 @@ export default function ListenerScreen() {
     EchoMindSocket.getInstance().retry();
   }, []);
 
+  const handleOrbPress = () => {
+    togglePassiveMode();
+  };
+
+  const handleOrbLongPress = () => {
+    startInstantRecord();
+  };
+
+  const handleOrbPressOut = () => {
+    if (captureMode === 'manual_instant') {
+      stopInstantRecord();
+    }
+  };
+
   const latestSentence = sentences.length > 0 ? sentences[sentences.length - 1] : '';
-  const displayTranscript = partialTranscript || latestSentence || 'Tap the orb to start...';
+  const displayTranscript = partialTranscript || latestSentence || '';
+
+  const isRecording = captureState === 'recording' || captureState === 'speech_detected';
+  const isPassive = captureState === 'passive_listening';
+  const isAuto = captureMode === 'auto';
 
   return (
     <View style={styles.container}>
@@ -64,9 +119,15 @@ export default function ListenerScreen() {
         style={styles.bgGradient}
       />
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        {/* Connection Status Bar */}
-        <View style={styles.statusRow}>
+      <View style={styles.header}>
+        <TouchableOpacity 
+          onPress={() => setShowSettings(!showSettings)}
+          style={styles.iconButton}
+        >
+          <SettingsIcon color={showSettings ? "#c799ff" : "#acaab0"} size={22} />
+        </TouchableOpacity>
+
+        <View style={styles.statusPillContainer}>
           <TouchableOpacity
             style={[
               styles.statusPill,
@@ -84,85 +145,110 @@ export default function ListenerScreen() {
               <WifiOff color="#ef4444" size={12} />
             )}
             <Text style={styles.statusText}>
-              {wsStatus === 'connected' ? 'SYNCED' : wsStatus === 'connecting' ? 'CONNECTING...' : 'OFFLINE · TAP TO RETRY'}
+              {wsStatus === 'connected' ? 'SYNCED' : wsStatus === 'connecting' ? 'CONNECTING...' : 'OFFLINE'}
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Orb */}
+        <View style={styles.iconButton}>
+          {isAuto ? (
+             <Zap color="#4af8e3" size={22} />
+          ) : (
+             <ZapOff color="#333" size={22} />
+          )}
+        </View>
+      </View>
+
+      {showSettings && (
+        <VoiceSettingsPanel 
+          onClose={() => setShowSettings(false)} 
+          onSettingsChanged={(s) => {
+            if (s.autoModeEnabled) enableAutoMode();
+            else if (captureMode === 'auto') disableCapture();
+          }}
+        />
+      )}
+
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        {/* Orb Container */}
         <View style={styles.orbContainer}>
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={isRecording ? stopRecording : startRecording}
+          <Pressable
+            onPress={handleOrbPress}
+            onLongPress={handleOrbLongPress}
+            onPressOut={handleOrbPressOut}
+            delayLongPress={300}
           >
-            <OrbVisualizer isRecording={isRecording} audioLevel={audioLevel} />
-          </TouchableOpacity>
+            <OrbVisualizer captureState={captureState} audioLevel={audioLevel} />
+          </Pressable>
         </View>
 
-        {/* Voice Error */}
-        {voiceError && (
-          <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.errorBanner}>
-            <AlertCircle color="#ef4444" size={16} />
-            <Text style={styles.errorText}>{voiceError}</Text>
-          </Animated.View>
-        )}
+        {/* State Banner */}
+        <View style={styles.stateBannerContainer}>
+           {voiceError ? (
+             <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.errorBanner}>
+               <AlertCircle color="#ef4444" size={16} />
+               <Text style={styles.errorText}>{voiceError}</Text>
+               <TouchableOpacity onPress={dismissError}>
+                 <Text style={styles.dismissText}>Dismiss</Text>
+               </TouchableOpacity>
+             </Animated.View>
+           ) : (
+             <View style={styles.modeIndicator}>
+                <Text style={styles.modeText}>
+                  {captureMode === 'auto' ? 'AUTO-CAPTURE ACTIVE' : 
+                   captureMode === 'manual_passive' ? 'PASSIVE LISTENING' :
+                   captureMode === 'manual_instant' ? 'INSTANT RECORD' : 'TAP TO START PASSIVE MODE'}
+                </Text>
+                <Text style={styles.modeSubtext}>
+                  {captureMode === 'auto' ? 'Monitoring environment...' : 
+                   captureMode === 'manual_passive' ? 'Waiting for speech...' :
+                   captureMode === 'manual_instant' ? 'Recording now...' : 'Hold orb for instant capture'}
+                </Text>
+             </View>
+           )}
+        </View>
 
-        {/* Live Transcript */}
-        {isRecording && (
-          <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.transcriptBox}>
-            <Text style={styles.transcriptText} numberOfLines={4}>
-              {displayTranscript}
-            </Text>
-          </Animated.View>
-        )}
-
-        {/* Memory Extraction Status */}
-        {memoryStatus !== 'idle' && (
-          <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.memoryStatusRow}>
-            <View style={styles.memoryPill}>
-              {memoryStatus === 'analyzing' ? (
-                <>
-                  <RefreshCw color="#c799ff" size={14} />
-                  <Text style={[styles.memoryStatusText, { color: '#c799ff' }]}>Extracting Memory...</Text>
-                </>
-              ) : (
-                <>
-                  <CheckCircle color="#4af8e3" size={14} />
-                  <Text style={[styles.memoryStatusText, { color: '#4af8e3' }]}>Memory Saved ✓</Text>
-                </>
-              )}
+        {/* Live Transcript Display */}
+        <View style={styles.transcriptContainer}>
+          {isRecording ? (
+            <Animated.View entering={FadeIn} style={styles.transcriptBox}>
+              <Text style={styles.transcriptText}>
+                {displayTranscript || '...'}
+              </Text>
+            </Animated.View>
+          ) : captureState === 'processing' ? (
+            <Animated.View entering={FadeIn} style={styles.processingBox}>
+               <RefreshCw color="#c799ff" size={24} style={styles.spin} />
+               <Text style={styles.processingText}>Syncing memory to neural cloud...</Text>
+            </Animated.View>
+          ) : captureState === 'saved' ? (
+            <Animated.View entering={FadeIn} style={styles.savedBox}>
+               <CheckCircle color="#4af8e3" size={24} />
+               <Text style={styles.savedText}>Memory Captured</Text>
+            </Animated.View>
+          ) : (
+            <View style={styles.idleHint}>
+              <Text style={styles.idleHintText}>
+                "Remember to buy coffee tomorrow"
+              </Text>
             </View>
-          </Animated.View>
-        )}
+          )}
+        </View>
 
-        {/* Idle State CTA */}
-        {!isRecording && memoryStatus === 'idle' && (
-          <View style={styles.idleContainer}>
-            <Text style={styles.heroTitle}>
-              Your AI Memory
-            </Text>
-            <LinearGradient
-              colors={['#c799ff', '#4af8e3']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.gradientLine}
-            />
-            <Text style={styles.heroSubtitle}>
-              Tap the orb and speak naturally.{'\n'}
-              EchoMind will remember everything for you.
-            </Text>
-          </View>
-        )}
-
-        {/* Live Sentence Feed */}
+        {/* Recent Activity Feed */}
         {sentences.length > 0 && (
-          <View style={styles.sentencesContainer}>
-            <Text style={styles.sentencesLabel}>
-              {isRecording ? '● Live feed' : 'Recent transcripts'}
-            </Text>
-            {sentences.slice(-5).map((s, i) => (
-              <Animated.View key={`${sentences.length}-${i}`} entering={FadeIn} style={styles.sentenceBubble}>
-                <Text style={styles.sentenceText} numberOfLines={2}>{s}</Text>
+          <View style={styles.feedContainer}>
+            <View style={styles.feedHeader}>
+              <View style={styles.liveDot} />
+              <Text style={styles.feedTitle}>Session Intelligence</Text>
+            </View>
+            {sentences.slice(-3).reverse().map((s, i) => (
+              <Animated.View 
+                key={`${i}-${s.substring(0, 5)}`} 
+                entering={FadeIn.delay(i * 100)} 
+                style={styles.feedItem}
+              >
+                <Text style={styles.feedText}>{s}</Text>
               </Animated.View>
             ))}
           </View>
@@ -182,32 +268,38 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: '60%',
-    borderBottomLeftRadius: 200,
-    borderBottomRightRadius: 200,
+    height: '70%',
   },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingTop: 100,
-    paddingBottom: 140,
-  },
-  statusRow: {
+  header: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 60,
     paddingHorizontal: 24,
-    marginBottom: 16,
+    zIndex: 10,
+  },
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  statusPillContainer: {
+    flex: 1,
+    alignItems: 'center',
   },
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
-    backgroundColor: 'rgba(14, 14, 18, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
@@ -218,117 +310,150 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(239, 68, 68, 0.3)',
   },
   statusText: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 9,
+    fontWeight: '800',
     color: '#acaab0',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100,
   },
   orbContainer: {
     alignItems: 'center',
-    paddingVertical: 24,
+    marginTop: 40,
+    marginBottom: 20,
+  },
+  stateBannerContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    minHeight: 60,
+  },
+  modeIndicator: {
+    alignItems: 'center',
+  },
+  modeText: {
+    color: '#fcf8fe',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  modeSubtext: {
+    color: '#777',
+    fontSize: 13,
+    marginTop: 4,
   },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginHorizontal: 24,
-    marginTop: 12,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderColor: 'rgba(239, 68, 68, 0.2)',
+    gap: 10,
   },
   errorText: {
-    flex: 1,
     color: '#fca5a5',
     fontSize: 13,
-    lineHeight: 18,
+    flex: 1,
+  },
+  dismissText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
+  transcriptContainer: {
+    marginTop: 30,
+    paddingHorizontal: 30,
+    minHeight: 120,
+    justifyContent: 'center',
   },
   transcriptBox: {
-    marginTop: 24,
-    paddingHorizontal: 32,
-    alignItems: 'center',
-    minHeight: 80,
+    width: '100%',
   },
   transcriptText: {
-    fontSize: 20,
-    fontWeight: '500',
     color: '#fcf8fe',
+    fontSize: 22,
+    fontWeight: '600',
     textAlign: 'center',
-    lineHeight: 30,
+    lineHeight: 34,
+    letterSpacing: -0.5,
   },
-  memoryStatusRow: {
-    marginTop: 20,
+  processingBox: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
   },
-  memoryPill: {
+  processingText: {
+    color: '#c799ff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  savedBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  savedText: {
+    color: '#4af8e3',
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  idleHint: {
+    opacity: 0.3,
+  },
+  idleHintText: {
+    color: '#acaab0',
+    fontSize: 16,
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  feedContainer: {
+    marginTop: 40,
+    paddingHorizontal: 24,
+  },
+  feedHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    marginBottom: 16,
   },
-  memoryStatusText: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#4af8e3',
   },
-  idleContainer: {
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    marginTop: 32,
-  },
-  heroTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#fcf8fe',
-    textAlign: 'center',
-    letterSpacing: -0.5,
-  },
-  gradientLine: {
-    width: 80,
-    height: 3,
-    borderRadius: 2,
-    marginVertical: 16,
-  },
-  heroSubtitle: {
-    fontSize: 16,
-    color: '#acaab0',
-    textAlign: 'center',
-    lineHeight: 24,
-    opacity: 0.8,
-  },
-  sentencesContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sentencesLabel: {
-    fontSize: 10,
-    fontWeight: '700',
+  feedTitle: {
     color: '#4af8e3',
+    fontSize: 10,
+    fontWeight: '800',
     letterSpacing: 1.5,
     textTransform: 'uppercase',
-    marginBottom: 12,
   },
-  sentenceBubble: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: 12,
+  feedItem: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    padding: 14,
-    marginBottom: 8,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
-  sentenceText: {
+  feedText: {
     color: '#acaab0',
     fontSize: 14,
     lineHeight: 20,
   },
+  spin: {
+    // Rotation handled by reanimated or simple transform if static
+  }
 });

@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
 import { performance } from 'perf_hooks';
-import { logger } from '../utils/logger';
-import prisma from '../lib/prisma';
-import { MemoryRepository } from '../repositories/MemoryRepository';
-import { extractMemory } from '../services/gemini.service';
+import { logger } from '../utils/logger.js';
+import prisma from '../lib/prisma.js';
+import { MemoryRepository } from '../repositories/MemoryRepository.js';
+import { extractMemory } from '../services/gemini.service.js';
 
 const memoryRepo = new MemoryRepository();
 

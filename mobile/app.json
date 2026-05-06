@@ -2,15 +2,18 @@
   "expo": {
     "name": "EchoMind AI",
     "slug": "echomind-ai",
-    "version": "0.0.1",
+    "version": "1.0.0",
     "scheme": "echomind",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "android": {
-      "package": "com.anonymous.mobile_new",
+      "package": "com.aryanmanhas.echomind",
       "permissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "plugins": [

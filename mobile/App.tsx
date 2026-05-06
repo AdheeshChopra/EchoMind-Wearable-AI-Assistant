@@ -16,16 +16,20 @@ import { useBluetoothAudio } from './hooks/useBluetoothAudio';
 
 const App = () => {
   const {
-    isRecording, 
+    captureState, 
     sentences, 
     partialTranscript, 
     audioLevel, 
     error, 
-    startRecording, 
-    stopRecording 
+    togglePassiveMode,
+    disableCapture,
   } = useEchoMindVoice();
   
-  const { isBluetoothConnected } = useBluetoothAudio();
+  const isRecording = captureState === 'recording' || captureState === 'speech_detected';
+  const startRecording = togglePassiveMode;
+  const stopRecording = disableCapture;
+  
+  const { isBluetoothConnected, deviceName } = useBluetoothAudio();
   const flatListRef = useRef<FlatList>(null);
 
   const backgroundStyle = {
@@ -39,7 +43,12 @@ const App = () => {
 
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.logo}>EchoMind AI</Text>
+          <View>
+            <Text style={styles.logo}>EchoMind AI</Text>
+            <Text style={styles.deviceLabel}>
+              {deviceName.toUpperCase()}
+            </Text>
+          </View>
           <View style={styles.headerActions}>
              {isBluetoothConnected ? (
                <BluetoothConnected color="#00F2FF" size={24} />
@@ -122,6 +131,14 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#FFFFFF',
     letterSpacing: 4,
+  },
+  deviceLabel: {
+    fontSize: 10,
+    color: '#00F2FF',
+    fontWeight: 'bold',
+    letterSpacing: 1.5,
+    marginTop: 4,
+    opacity: 0.7,
   },
   headerActions: {
     flexDirection: 'row',

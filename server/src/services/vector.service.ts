@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/logger.js';
 
 const ai = new GoogleGenAI({ 
   apiKey: process.env.GOOGLE_API_KEY 

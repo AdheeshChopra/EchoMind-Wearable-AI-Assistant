@@ -1,19 +1,30 @@
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
-import { MemoryExtractionSchema, MemoryExtraction } from '../utils/MemorySchema';
-import { env } from '../utils/env';
-import { logger } from '../utils/logger';
+import { MemoryExtractionSchema, MemoryExtraction } from '../utils/MemorySchema.js';
+import { env } from '../utils/env.js';
+import { logger } from '../utils/logger.js';
 
 const apiKey = env.GOOGLE_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey);
 
 export async function extractMemory(transcript: string): Promise<MemoryExtraction | null> {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }); // Using a strong model as per user's typical high-tier settings, or fallback to flash
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' }); // Upgrading to 2.0 flash for better time resolution
 
+    const now = new Date();
     const systemPrompt = `You are the EchoMind Memory Engine, an intelligent "Second Brain".
+Current Time: ${now.toISOString()} (${now.toLocaleDateString()} ${now.toLocaleTimeString()})
+
 Your goal is to extract a highly accurate, structured memory from the provided transcript.
-Write the summary in a concise, present-tense, and actionable style. Keep it under 3 sentences.
-Categorize the memory STRICTLY into one of three types: "Task", "Fact", or "Idea".
-Provide an importance score from 0.0 (trivial) to 1.0 (critical).`;
+1. Write a title (concise, declarative).
+2. Write a summary (concise, present-tense, actionable).
+3. Categorize into "Task", "Fact", or "Idea".
+4. Score importance from 0.0 to 1.0.
+
+REMINDER EXTRACTION:
+If the user mentions a specific time, date, or relative time (e.g., "tomorrow at 5", "next Friday", "daily at 8pm"), extract a "reminder" object.
+- dueAt: MUST be an ISO 8601 string. Use the Current Time provided above to resolve relative dates.
+- category: work, health, meeting, personal, study, family, payment, errands.
+- priority: low, medium, high.
+- repeatRule: daily, weekly, monthly, weekdays, or null.`;
 
     try {
         const result = await model.generateContent({
@@ -32,12 +43,27 @@ Provide an importance score from 0.0 (trivial) to 1.0 (critical).`;
                             type: SchemaType.STRING, 
                             description: 'Fact, Task, Idea'
                         },
-                        importance: { type: SchemaType.NUMBER }
+                        importance: { type: SchemaType.NUMBER },
+                        reminder: {
+                            type: SchemaType.OBJECT,
+                            nullable: true,
+                            properties: {
+                                title: { type: SchemaType.STRING },
+                                description: { type: SchemaType.STRING },
+                                dueAt: { type: SchemaType.STRING, description: 'ISO 8601' },
+                                category: { type: SchemaType.STRING },
+                                priority: { type: SchemaType.STRING, description: 'low, medium, high' },
+                                repeatRule: { type: SchemaType.STRING, nullable: true },
+                                isCritical: { type: SchemaType.BOOLEAN }
+                            },
+                            required: ['title', 'dueAt', 'category', 'priority']
+                        }
                     },
                     required: ['title', 'summary', 'category', 'importance']
                 }
             }
         });
+
 
         try {
             const text = result.response.text();

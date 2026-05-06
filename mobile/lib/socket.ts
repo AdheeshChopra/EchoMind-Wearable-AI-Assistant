@@ -17,6 +17,9 @@ export class EchoMindSocket {
   // Offline queue
   private messageQueue: any[] = [];
 
+  // Auth token for JWT authentication
+  private authToken: string | null = null;
+
   private constructor(url: string) {
     this.url = url;
   }
@@ -27,6 +30,13 @@ export class EchoMindSocket {
       EchoMindSocket.instance = new EchoMindSocket(wsUrl);
     }
     return EchoMindSocket.instance;
+  }
+
+  /**
+   * Set the JWT auth token for WebSocket authentication.
+   */
+  public setAuthToken(token: string) {
+    this.authToken = token;
   }
 
   public on(event: string, callback: Listener) {
@@ -51,7 +61,7 @@ export class EchoMindSocket {
     return this.socket?.readyState === WebSocket.OPEN;
   }
 
-  public get status(): 'connected' | 'connecting' | 'disconnected' {
+  public get status(): 'connected' | 'connecting' | 'disconnected' | 'authenticating' {
     if (this.socket?.readyState === WebSocket.OPEN) return 'connected';
     if (this.isConnecting) return 'connecting';
     return 'disconnected';
@@ -67,7 +77,6 @@ export class EchoMindSocket {
     try {
       this.socket = new WebSocket(this.url);
     } catch (e) {
-      // WebSocket constructor can throw on invalid URL
       this.isConnecting = false;
       this.emit('disconnected');
       this.scheduleReconnect();
@@ -75,16 +84,34 @@ export class EchoMindSocket {
     }
 
     this.socket.onopen = () => {
-      console.log('[Socket] ✓ Connected');
       this.isConnecting = false;
       this.reconnectAttempts = 0;
-      this.emit('connected');
-      this.flushQueue();
+
+      // Authenticate immediately after connection
+      if (this.authToken) {
+        this.send({ type: 'AUTH', token: this.authToken });
+        this.emit('authenticating');
+      } else {
+        this.emit('connected');
+        this.flushQueue();
+      }
     };
 
     this.socket.onmessage = (e) => {
       try {
         const payload = JSON.parse(e.data as string);
+
+        // Handle auth responses
+        if (payload.type === 'AUTH_OK') {
+          this.emit('connected');
+          this.flushQueue();
+          return;
+        }
+        if (payload.type === 'AUTH_FAIL') {
+          this.emit('auth_failed', payload);
+          return;
+        }
+
         if (payload.type) {
           this.emit(payload.type, payload);
         } else {
@@ -106,7 +133,6 @@ export class EchoMindSocket {
     };
 
     this.socket.onerror = () => {
-      // Errors are always followed by onclose, so just mark connecting false
       this.isConnecting = false;
     };
   }
@@ -116,14 +142,11 @@ export class EchoMindSocket {
     
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
-      // Exponential backoff: 3s, 6s, 12s, 24s... capped at 30s
       const delay = Math.min(this.reconnectDelay * Math.pow(1.5, this.reconnectAttempts - 1), 30000);
-      console.log(`[Socket] Reconnect ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${(delay/1000).toFixed(0)}s`);
       this.reconnectTimer = setTimeout(() => {
         this.connect();
       }, delay);
     } else {
-      console.log('[Socket] Backend unreachable — will retry when you send a message');
       this.emit('reconnect_failed');
     }
   }
@@ -146,8 +169,10 @@ export class EchoMindSocket {
     if (this.socket?.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify(data));
     } else {
-      this.messageQueue.push(data);
-      // Auto-reconnect when sending
+      // Don't queue auth messages
+      if (data.type !== 'AUTH') {
+        this.messageQueue.push(data);
+      }
       if (!this.manualDisconnect && !this.isConnecting) {
         this.reconnectAttempts = 0;
         this.connect();
@@ -155,11 +180,27 @@ export class EchoMindSocket {
     }
   }
 
+  /**
+   * Send a text transcript for memory extraction.
+   * Server handles language detection and NLP processing.
+   */
   public streamTranscript(text: string) {
     if (!text || !text.trim()) return;
     this.send({
       type: 'TEXT_TRANSCRIPT',
       text: text.trim(),
+    });
+  }
+
+  /**
+   * Send a semantic search query (bilingual).
+   * Server responds with QUERY_RESULT containing matched memories + AI answer.
+   */
+  public sendQuery(query: string) {
+    if (!query || !query.trim()) return;
+    this.send({
+      type: 'QUERY',
+      text: query.trim(),
     });
   }
 

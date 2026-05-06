@@ -1,5 +1,6 @@
 datasource db {
   provider   = "postgresql"
+  url        = env("DATABASE_URL")
   extensions = [pgvector(map: "vector")]
 }
 
@@ -9,20 +10,119 @@ generator client {
   engineType      = "library"
 }
 
+// ─── User ─────────────────────────────────────────────────────
+model User {
+  id         String   @id @default(uuid())
+  deviceId   String   @unique
+  deviceName String?
+  platform   String   @default("android")
+  pushToken  String?
+  preferences Json    @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  memories   Memory[]
+  reminders  Reminder[]
+  sessions   Session[]
+}
+
+// ─── Session ──────────────────────────────────────────────────
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshToken String   @unique
+  deviceId     String
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ─── Transcript ───────────────────────────────────────────────
 model Transcript {
   id        String   @id @default(uuid())
   text      String
   createdAt DateTime @default(now())
 }
 
+// ─── Memory ───────────────────────────────────────────────────
 model Memory {
-  id              String   @id @default(uuid())
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title          String
+  summary        String
+  category       String
+  importance     Float
+  rawTranscript  String?
+  sourceType     String    @default("voice")
+  language       String    @default("en")
+  tags           String[]  @default([])
+  nextActionDate DateTime?
+  embedding      Unsupported("vector(3072)")?
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  reminders      Reminder[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([category])
+  @@index([deletedAt])
+}
+
+// ─── Reminder ─────────────────────────────────────────────────
+model Reminder {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   title           String
-  summary         String
-  category        String
-  importance      Float
-  rawTranscript   String?
-  nextActionDate  DateTime?
-  embedding       Unsupported("vector(3072)")? // Standard embedding size for gemini-embedding-001 
-  createdAt       DateTime @default(now())
+  description     String?
+  dueAt           DateTime
+  category        String    @default("personal")
+  priority        String    @default("medium")
+  repeatRule      String?
+  status          String    @default("pending")
+  advanceOffsets  Int[]     @default([30, 15, 5])
+  completedAt     DateTime?
+  snoozedUntil    DateTime?
+  isCritical      Boolean   @default(false)
+  confidence      Float     @default(1.0)
+  escalationLevel Int       @default(0)
+
+  memoryId        String?
+  memory          Memory?   @relation(fields: [memoryId], references: [id])
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId, status, dueAt])
+  @@index([memoryId])
+}
+
+// ─── Notification Event ───────────────────────────────────────
+model NotificationEvent {
+  id          String    @id @default(uuid())
+  userId      String
+  type        String
+  payload     Json
+  deliveredAt DateTime?
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+// ─── Audit Log ────────────────────────────────────────────────
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([entity, entityId])
 }

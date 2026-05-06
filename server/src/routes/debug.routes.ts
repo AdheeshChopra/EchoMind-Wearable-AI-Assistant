@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { DebugController } from '../controllers/DebugController';
+import { DebugController } from '../controllers/DebugController.js';
 
 const router = Router();
 const debugController = new DebugController();

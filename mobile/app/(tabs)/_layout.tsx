@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
-import { Sparkles, Compass } from 'lucide-react-native';
+import { Sparkles, Compass, Bell } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -59,6 +59,13 @@ export default function TabLayout() {
         options={{
           title: 'Memories',
           tabBarIcon: ({ color }) => <Compass color={color} size={22} />,
+        }}
+      />
+      <Tabs.Screen
+        name="reminders"
+        options={{
+          title: 'Alerts',
+          tabBarIcon: ({ color }) => <Bell color={color} size={22} />,
         }}
       />
     </Tabs>

@@ -1,8 +1,11 @@
 import { Stack } from 'expo-router';
 import { StatusBar, View, StyleSheet } from 'react-native';
 import '../global.css';
+import { useNotifications } from '../hooks/useNotifications';
 
 export default function RootLayout() {
+  useNotifications();
+
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor="#050505" translucent />

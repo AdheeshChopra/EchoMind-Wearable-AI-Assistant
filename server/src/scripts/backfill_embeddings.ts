@@ -1,6 +1,6 @@
-import prisma from '../lib/prisma';
-import { vectorService } from '../services/vector.service';
-import { logger } from '../utils/logger';
+import prisma from '../lib/prisma.js';
+import { vectorService } from '../services/vector.service.js';
+import { logger } from '../utils/logger.js';
 
 async function main() {
   logger.info('Starting backfill of vector embeddings for existing memories...');

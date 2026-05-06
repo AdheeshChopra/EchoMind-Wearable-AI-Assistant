@@ -8,30 +8,36 @@ import InCallManager from 'react-native-incall-manager';
  */
 export const useBluetoothAudio = () => {
   const [isBluetoothConnected, setIsBluetoothConnected] = useState(false);
+  const [deviceName, setDeviceName] = useState('DEVICE_MIC');
   const [availableDevices, setAvailableDevices] = useState<string[]>([]);
 
   useEffect(() => {
-    // Start InCallManager to gain control over audio routing
-    InCallManager.start({ media: 'audio' });
+    if (!NativeModules.InCallManager) {
+      console.warn('InCallManager native module not found');
+      return;
+    }
+
+    // Initialize without starting audio routing immediately to save battery
+    // We only start() when we want to force SCO (Bluetooth) or high-quality mic
+    InCallManager.start({ media: 'audio', ringback: '' });
 
     const eventEmitter = new NativeEventEmitter(NativeModules.InCallManager);
     
     const subscription = eventEmitter.addListener('onAudioDeviceChanged', (data) => {
-      // Data format: { availableAudioDeviceList: string (JSON), selectedAudioDevice: string }
       try {
-        const devices = JSON.parse(data.availableAudioDeviceList);
-        setAvailableDevices(devices);
+        const devices = typeof data.availableAudioDeviceList === 'string' 
+          ? JSON.parse(data.availableAudioDeviceList) 
+          : data.availableAudioDeviceList;
+          
+        setAvailableDevices(devices || []);
+        setDeviceName(data.selectedAudioDevice || 'DEVICE_MIC');
         
-        // Check if Bluetooth is in the available list or currently selected
-        const hasBluetooth = devices.includes('BLUETOOTH');
+        const hasBluetooth = (devices || []).some((d: string) => d.toLowerCase().includes('bluetooth'));
         setIsBluetoothConnected(hasBluetooth);
       } catch (err) {
-        console.error('Failed to parse audio device list', err);
+        console.error('Failed to process audio device state', err);
       }
     });
-
-    // InCallManager.start() usually triggers an initial onAudioDeviceChanged event.
-    // If you need more granular check, standard device detection should happen via the listener.
 
     return () => {
       subscription.remove();
@@ -41,6 +47,7 @@ export const useBluetoothAudio = () => {
 
   return {
     isBluetoothConnected,
+    deviceName,
     availableDevices,
   };
 };

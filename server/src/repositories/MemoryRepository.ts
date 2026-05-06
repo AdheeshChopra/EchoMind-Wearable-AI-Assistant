@@ -1,7 +1,7 @@
-import prisma from '../lib/prisma';
+import prisma from '../lib/prisma.js';
 import { Prisma } from '@prisma/client';
-import { vectorService } from '../services/vector.service';
-import { logger } from '../utils/logger';
+import { vectorService } from '../services/vector.service.js';
+import { logger } from '../utils/logger.js';
 
 export class MemoryRepository {
   async saveExtractedMemory(
@@ -11,7 +11,8 @@ export class MemoryRepository {
       category: string;
       importance: number;
     },
-    rawTranscript: string
+    rawTranscript: string,
+    userId: string
   ) {
     let nextActionDate: Date | null = null;
     if (data.category === 'Task') {
@@ -22,6 +23,7 @@ export class MemoryRepository {
     // 1. Save memory without embedding first
     const memory = await prisma.memory.create({
       data: {
+        userId,
         title: data.title,
         summary: data.summary,
         category: data.category,

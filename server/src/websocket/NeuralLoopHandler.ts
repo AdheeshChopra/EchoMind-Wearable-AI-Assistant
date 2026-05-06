@@ -3,11 +3,14 @@ import { spawn } from 'child_process';
 import axios from 'axios';
 import FormData from 'form-data';
 import { performance } from 'perf_hooks';
-import { extractMemory } from '../services/gemini.service';
-import { MemoryRepository } from '../repositories/MemoryRepository';
-import { TranscriptionService } from '../services/TranscriptionService';
-import { logger } from '../utils/logger';
-import { env } from '../utils/env';
+import { extractMemory } from '../ai/gemini.service.js';
+import { MemoryRepository } from '../repositories/MemoryRepository.js';
+import { TranscriptionService } from '../services/TranscriptionService.js';
+import { ReminderService } from '../services/ReminderService.js';
+import { logger } from '../utils/logger.js';
+import { env } from '../config/env.js';
+
+const PLACEHOLDER_USER_ID = '00000000-0000-0000-0000-000000000000';
 
 const memoryRepo = new MemoryRepository();
 const transcriptionService = new TranscriptionService();
@@ -69,9 +72,20 @@ export function setupNeuralLoop(wss: WebSocketServer) {
 
           extractMemory(transcript).then(async (memoryAnalysis) => {
             if (memoryAnalysis) {
-              const savedMemory = await memoryRepo.saveExtractedMemory(memoryAnalysis, transcript);
-              ws.send(JSON.stringify({ type: 'MEMORY_SAVED', data: savedMemory, correlationId }));
-              logger.info(`[AUDIT] Text Processed -> Memory Saved [${correlationId}]`);
+              const savedMemory = await memoryRepo.saveExtractedMemory(memoryAnalysis, transcript, PLACEHOLDER_USER_ID);
+              
+              let savedReminder = null;
+              if (memoryAnalysis.reminder) {
+                savedReminder = await ReminderService.createReminder(PLACEHOLDER_USER_ID, savedMemory.id, memoryAnalysis.reminder);
+              }
+
+              ws.send(JSON.stringify({ 
+                type: 'MEMORY_SAVED', 
+                data: savedMemory, 
+                reminder: savedReminder,
+                correlationId 
+              }));
+              logger.info(`[AUDIT] Text Processed -> Memory Saved [${correlationId}] ${savedReminder ? '+ Reminder Created' : ''}`);
             }
           }).catch(err => {
             logger.error({ err }, `[ERROR] Text processing failed [${correlationId}]`);
@@ -153,13 +167,23 @@ export function setupNeuralLoop(wss: WebSocketServer) {
                 logger.info(`[INTEL] Memory Classified as: ${memoryAnalysis.category.toUpperCase()} | Importance: ${importanceLabel}`);
 
                 const saveStartTime = performance.now();
-                const savedMemory = await memoryRepo.saveExtractedMemory(memoryAnalysis, transcript);
+                const savedMemory = await memoryRepo.saveExtractedMemory(memoryAnalysis, transcript, PLACEHOLDER_USER_ID);
+                
+                let savedReminder = null;
+                if (memoryAnalysis.reminder) {
+                  savedReminder = await ReminderService.createReminder(PLACEHOLDER_USER_ID, savedMemory.id, memoryAnalysis.reminder);
+                }
+
                 const saveTime = performance.now() - saveStartTime;
 
                 // Required telemetry log
-                logger.info(`[AUDIT] Start -> Transcript (${whisperTime.toFixed(0)}ms) -> Extraction (${geminiTime.toFixed(0)}ms) -> DB Write (Success)`);
+                logger.info(`[AUDIT] Start -> Transcript (${whisperTime.toFixed(0)}ms) -> Extraction (${geminiTime.toFixed(0)}ms) -> DB Write (Success) ${savedReminder ? '+ Reminder' : ''}`);
 
-                ws.send(JSON.stringify({ type: 'MEMORY_SAVED', data: savedMemory }));
+                ws.send(JSON.stringify({ 
+                  type: 'MEMORY_SAVED', 
+                  data: savedMemory,
+                  reminder: savedReminder
+                }));
               }
             }
           } catch (err) {

@@ -4,7 +4,7 @@ import { Clock, Heart, Search, X, Plus, Brain, Lightbulb, CheckSquare } from 'lu
 import { EchoMindSocket } from '../../lib/socket';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
 
 interface Memory {
   id: string;
@@ -211,7 +211,7 @@ export default function FeedScreen() {
           <ActivityIndicator size="large" color="#c799ff" style={{ marginTop: 40 }} />
         </View>
       ) : (
-        <FlatList
+        <Animated.FlatList
           data={memories}
           renderItem={renderItem}
           keyExtractor={(item, i) => item.id || String(i)}
@@ -315,6 +315,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginBottom: 4,
+  },
+  cardWrapper: {
+    width: '100%',
   },
   card: {
     marginHorizontal: 20,
