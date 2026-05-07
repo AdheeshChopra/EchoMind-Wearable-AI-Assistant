@@ -11,7 +11,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "postinstall": "prisma generate && prisma migrate deploy"
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@echomind/logger": "file:../packages/logger",

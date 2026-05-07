@@ -1,7 +1,7 @@
 # ─────────────────────────────────────────────
 # Stage 1: Build packages & server
 # ─────────────────────────────────────────────
-FROM node:22-slim AS builder
+FROM node:22.12-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     openssl \
@@ -57,7 +57,7 @@ RUN npx tsc
 # ─────────────────────────────────────────────
 # Stage 2: Lean production runtime
 # ─────────────────────────────────────────────
-FROM node:22-slim AS runner
+FROM node:22.12-slim AS runner
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     openssl \
