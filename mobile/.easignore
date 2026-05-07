@@ -1,12 +1,7 @@
 node_modules/
 .expo/
-.turbo/
 dist/
 build/
-*.apk
-*.aab
-android/
-ios/
-.bundle/
-.next/
-out/
+.code-review-graph/
+*.log
+.env*

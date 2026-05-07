@@ -16,5 +16,15 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, 'node_modules'),
 ];
 
+// 3. Exclude heavy or unnecessary folders from Metro
+config.resolver.blockList = [
+  /.*\.code-review-graph\/.*/,
+  /.*\.git\/.*/,
+  /.*\.gsd\/.*/,
+  /.*\.agent\/.*/,
+  /.*\.agents\/.*/,
+  /.*\.claude\/.*/,
+];
+
 module.exports = withNativeWind(config, { input: './global.css' });
 
