@@ -1,36 +1,64 @@
-# Stage 1: Build
+# ─────────────────────────────────────────────
+# Stage 1: Build packages & server
+# ─────────────────────────────────────────────
 FROM node:22-slim AS builder
 
-# STRIP BLOAT: Use --no-install-recommends to avoid X11, Mesa, and other desktop libs
 RUN apt-get update && apt-get install -y --no-install-recommends \
     openssl \
-    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy root manifest and workspaces structure
-COPY package.json package-lock.json ./
-COPY packages/ ./packages/
-COPY server/package.json ./server/
+# ── Copy shared tsconfig ──────────────────────
+COPY tsconfig.base.json ./
 
-# Install dependencies for the server workspace (includes root hoisting)
-RUN npm ci --workspace=echomind-server --include-workspace-root
+# ── Build @echomind/logger ────────────────────
+COPY packages/logger/package.json ./packages/logger/
+COPY packages/logger/tsconfig.json ./packages/logger/
+COPY packages/logger/src ./packages/logger/src
 
-# Copy server source
-COPY server/ ./server/
+WORKDIR /app/packages/logger
+RUN npm install --no-audit --no-fund
+RUN npx tsc
 
-# Generate Prisma Client (needed for build and runtime)
+# ── Build @echomind/types ─────────────────────
+WORKDIR /app
+COPY packages/types/package.json ./packages/types/
+COPY packages/types/tsconfig.json ./packages/types/
+COPY packages/types/src ./packages/types/src
+
+WORKDIR /app/packages/types
+RUN npm install --no-audit --no-fund
+RUN npx tsc
+
+# ── Install & build server ────────────────────
 WORKDIR /app/server
+
+COPY server/package.json server/package-lock.json* ./
+
+# Rewrite local package refs to point at built dist folders (no workspace protocol)
+RUN node -e "\
+  const fs = require('fs'); \
+  const pkg = JSON.parse(fs.readFileSync('package.json','utf8')); \
+  pkg.dependencies['@echomind/logger'] = 'file:../packages/logger'; \
+  pkg.dependencies['@echomind/types'] = 'file:../packages/types'; \
+  fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2)); \
+"
+
+RUN npm install --no-audit --no-fund
+
+COPY server/tsconfig.json ./
+COPY server/src ./src
+COPY server/prisma ./prisma
+
 RUN npx prisma generate
+RUN npx tsc
 
-# Build (compile TS)
-RUN npm run build
-
-# Stage 2: Runtime
+# ─────────────────────────────────────────────
+# Stage 2: Lean production runtime
+# ─────────────────────────────────────────────
 FROM node:22-slim AS runner
 
-# STRIP BLOAT: Minimal runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     openssl \
     ffmpeg \
@@ -38,20 +66,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copy artifacts from builder
-# We need node_modules, dist, package.json, and prisma
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/server/dist ./server/dist
-COPY --from=builder /app/server/package.json ./server/package.json
-COPY --from=builder /app/server/prisma ./server/prisma
-# We also need the local packages referenced in package.json
-COPY --from=builder /app/packages ./packages
+# Copy only what's needed to run
+COPY --from=builder /app/server/node_modules ./node_modules
+COPY --from=builder /app/server/dist ./dist
+COPY --from=builder /app/server/prisma ./prisma
+COPY --from=builder /app/server/package.json ./package.json
+# Prisma client is generated into node_modules, already copied above
 
 ENV NODE_ENV=production
 ENV PORT=8080
 
 EXPOSE 8080
 
-# Run from server directory
-WORKDIR /app/server
 CMD ["node", "dist/index.js"]
