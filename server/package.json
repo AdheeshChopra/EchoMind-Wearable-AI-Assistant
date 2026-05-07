@@ -16,6 +16,7 @@
   "dependencies": {
     "@echomind/logger": "file:../packages/logger",
     "@echomind/types": "file:../packages/types",
+    "@google/genai": "^1.52.0",
     "@google/generative-ai": "^0.24.1",
     "@neondatabase/serverless": "^1.1.0",
     "@prisma/adapter-pg": "^7.7.0",

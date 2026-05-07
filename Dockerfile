@@ -45,13 +45,11 @@ RUN node -e "\
   fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2)); \
 "
 
+COPY server/prisma ./prisma
 RUN npm install --no-audit --no-fund
 
 COPY server/tsconfig.json ./
 COPY server/src ./src
-COPY server/prisma ./prisma
-
-RUN npx prisma generate
 RUN npx tsc
 
 # ─────────────────────────────────────────────
