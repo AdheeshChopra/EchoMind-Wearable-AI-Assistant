@@ -1,6 +1,6 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import type { IncomingMessage } from 'http';
-import { createLogger, withCorrelation } from '@echomind/logger';
+import { createLogger, withCorrelation } from '../utils/logger.js';
 import { AuthService } from '../auth/auth.service.js';
 import { extractMemory, answerQuery } from '../ai/gemini.service.js';
 import { memoryService } from '../services/memory.service.js';

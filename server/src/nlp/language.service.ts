@@ -1,4 +1,4 @@
-import { createLogger } from '@echomind/logger';
+import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('language');
 

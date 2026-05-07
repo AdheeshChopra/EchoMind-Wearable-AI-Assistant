@@ -1,4 +1,4 @@
-import { createLogger } from '@echomind/logger';
+import { createLogger } from '../utils/logger.js';
 import prisma from '../db/prisma.js';
 import type { ReminderExtraction } from '@echomind/types';
 

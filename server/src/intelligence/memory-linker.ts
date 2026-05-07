@@ -1,4 +1,4 @@
-import { createLogger } from '@echomind/logger';
+import { createLogger } from '../utils/logger.js';
 import prisma from '../db/prisma.js';
 import { embeddingService, EmbeddingService } from '../embeddings/embedding.service.js';
 

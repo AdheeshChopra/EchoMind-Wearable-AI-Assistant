@@ -1,5 +1,5 @@
 import { createQueue, createWorker, type Job } from './queue.factory.js';
-import { createLogger } from '@echomind/logger';
+import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('dead-letter');
 

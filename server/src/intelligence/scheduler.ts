@@ -1,4 +1,4 @@
-import { createLogger } from '@echomind/logger';
+import { createLogger } from '../utils/logger.js';
 import prisma from '../db/prisma.js';
 import { ProactiveEngine } from '../intelligence/proactive.engine.js';
 import { CONSTANTS } from '../config/constants.js';

@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { createLogger } from '@echomind/logger';
+import { createLogger } from '../utils/logger.js';
 import { env } from '../config/env.js';
 import { CONSTANTS } from '../config/constants.js';
 

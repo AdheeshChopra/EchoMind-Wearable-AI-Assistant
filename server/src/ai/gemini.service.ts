@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
-import { createLogger } from '@echomind/logger';
+import { createLogger } from '../utils/logger.js';
 import { MemoryExtractionSchema, type MemoryExtraction } from '@echomind/types';
 import { env } from '../config/env.js';
 import { CONSTANTS } from '../config/constants.js';

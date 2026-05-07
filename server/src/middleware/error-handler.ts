@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
-import { createLogger } from '@echomind/logger';
+import { createLogger } from '../utils/logger.js';
 import { AppError } from './errors.js';
 import type { ApiResponse } from '@echomind/types';
 

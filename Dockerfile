@@ -40,10 +40,10 @@ COPY server/package.json server/package-lock.json* ./
 RUN node -e "\
   const fs = require('fs'); \
   const pkg = JSON.parse(fs.readFileSync('package.json','utf8')); \
-  pkg.dependencies['@echomind/logger'] = 'file:../packages/logger'; \
   pkg.dependencies['@echomind/types'] = 'file:../packages/types'; \
   fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2)); \
 "
+
 
 COPY server/prisma ./prisma
 RUN npm install --no-audit --no-fund

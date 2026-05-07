@@ -1,4 +1,4 @@
-import { createLogger } from '@echomind/logger';
+import { createLogger } from '../utils/logger.js';
 import { detectLanguage, type SupportedLanguage } from '../nlp/language.service.js';
 import { extractEntities, type NLPEntities } from '../nlp/entity-extractor.js';
 

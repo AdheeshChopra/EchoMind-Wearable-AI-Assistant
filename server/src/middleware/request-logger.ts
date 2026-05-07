@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { randomUUID } from 'crypto';
-import { createLogger, withCorrelation } from '@echomind/logger';
+import { createLogger, withCorrelation } from '../utils/logger.js';
 import { performance } from 'perf_hooks';
 
 const log = createLogger('http');

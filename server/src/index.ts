@@ -3,7 +3,7 @@ import { env } from './config/env.js';
 
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
-import { createLogger } from '@echomind/logger';
+import { createLogger } from './utils/logger.js';
 import prisma from './db/prisma.js';
 import { createApp } from './app.js';
 import { setupWebSocket } from './websocket/handler.js';

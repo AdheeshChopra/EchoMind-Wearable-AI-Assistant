@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express';
-import { createLogger } from '@echomind/logger';
+import { createLogger } from '../utils/logger.js';
 import prisma from '../db/prisma.js';
 import { getDeadLetterStats } from '../queues/dead-letter.queue.js';
 

@@ -1,4 +1,4 @@
-import { createLogger } from '@echomind/logger';
+import { createLogger } from '../utils/logger.js';
 import { detectLanguage, normalizeTranscript, type SupportedLanguage } from './language.service.js';
 
 const log = createLogger('nlp');

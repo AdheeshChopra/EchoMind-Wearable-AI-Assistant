@@ -1,5 +1,5 @@
 import { createQueue, createWorker, type Job } from './queue.factory.js';
-import { createLogger } from '@echomind/logger';
+import { createLogger } from '../utils/logger.js';
 import { extractMemory } from '../ai/gemini.service.js';
 import { memoryService } from '../services/memory.service.js';
 import { ReminderService } from '../reminders/reminder.service.js';

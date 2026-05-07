@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { Pool, neonConfig } from '@neondatabase/serverless';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { createLogger } from '@echomind/logger';
+import { createLogger } from '../utils/logger.js';
 import ws from 'ws';
 import { env } from '../config/env.js';
 
