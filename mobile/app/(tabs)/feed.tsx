@@ -16,7 +16,7 @@ interface Memory {
   createdAt: string;
 }
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.29.113:8080';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://echomind-server-production.up.railway.app';
 
 const getCategoryIcon = (cat: string) => {
   switch (cat?.toLowerCase()) {

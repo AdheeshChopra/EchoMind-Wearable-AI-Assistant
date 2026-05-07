@@ -25,7 +25,7 @@ export class EchoMindSocket {
   }
 
   public static getInstance(): EchoMindSocket {
-    const wsUrl = process.env.EXPO_PUBLIC_WS_URL || 'ws://192.168.29.113:8080';
+    const wsUrl = process.env.EXPO_PUBLIC_WS_URL || 'wss://echomind-server-production.up.railway.app';
     if (!EchoMindSocket.instance) {
       EchoMindSocket.instance = new EchoMindSocket(wsUrl);
     }
