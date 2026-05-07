@@ -12,15 +12,6 @@ WORKDIR /app
 # ── Copy shared tsconfig ──────────────────────
 COPY tsconfig.base.json ./
 
-# ── Build @echomind/logger ────────────────────
-COPY packages/logger/package.json ./packages/logger/
-COPY packages/logger/tsconfig.json ./packages/logger/
-COPY packages/logger/src ./packages/logger/src
-
-WORKDIR /app/packages/logger
-RUN npm install --no-audit --no-fund
-RUN npx tsc
-
 # ── Build @echomind/types ─────────────────────
 WORKDIR /app
 COPY packages/types/package.json ./packages/types/
@@ -64,13 +55,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copy only what's needed to run
-COPY --from=builder /app/packages ./packages
-COPY --from=builder /app/server/node_modules ./node_modules
-COPY --from=builder /app/server/dist ./dist
-COPY --from=builder /app/server/prisma ./prisma
-COPY --from=builder /app/server/package.json ./package.json
-# Prisma client is generated into node_modules, already copied above
+# Copy only what's needed to run, maintaining monorepo structure for symlinks
+COPY --from=builder /app/packages/types ./packages/types
+COPY --from=builder /app/server/node_modules ./server/node_modules
+COPY --from=builder /app/server/dist ./server/dist
+COPY --from=builder /app/server/prisma ./server/prisma
+COPY --from=builder /app/server/package.json ./server/package.json
+
+WORKDIR /app/server
 
 ENV NODE_ENV=production
 ENV PORT=8080
