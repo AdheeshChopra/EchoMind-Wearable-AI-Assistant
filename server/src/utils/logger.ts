@@ -1,18 +1,22 @@
 // Zero-G Mock: Anti-gravity adapter for @echomind/logger
 // This lightweight mock intercepts the missing package import to prevent crashes.
 
-const logger = {
-  info: (...args: any[]) => console.log('[INFO]', ...args),
-  error: (...args: any[]) => console.error('[ERROR]', ...args),
-  warn: (...args: any[]) => console.warn('[WARN]', ...args),
-  debug: (...args: any[]) => console.log('[DEBUG]', ...args),
-  trace: (...args: any[]) => console.log('[TRACE]', ...args),
-  fatal: (...args: any[]) => console.error('[FATAL]', ...args),
-  child: () => logger
+const createMockLogger = (name?: string) => {
+  const prefix = name ? `[${name}]` : '';
+  const logger = {
+    info: (arg1: any, arg2?: string) => console.log('[INFO]', prefix, arg2 || arg1, arg2 ? arg1 : ''),
+    error: (arg1: any, arg2?: string) => console.error('[ERROR]', prefix, arg2 || arg1, arg2 ? arg1 : ''),
+    warn: (arg1: any, arg2?: string) => console.warn('[WARN]', prefix, arg2 || arg1, arg2 ? arg1 : ''),
+    debug: (arg1: any, arg2?: string) => console.log('[DEBUG]', prefix, arg2 || arg1, arg2 ? arg1 : ''),
+    trace: (arg1: any, arg2?: string) => console.log('[TRACE]', prefix, arg2 || arg1, arg2 ? arg1 : ''),
+    fatal: (arg1: any, arg2?: string) => console.error('[FATAL]', prefix, arg2 || arg1, arg2 ? arg1 : ''),
+    child: () => logger
+  };
+  return logger;
 };
 
-export const createLogger = () => logger;
-export const withCorrelation = (id: string, fn: Function) => fn();
-export { logger };
+export const createLogger = (name?: string) => createMockLogger(name);
+export const withCorrelation = (logger: any, correlationId: string) => logger;
+export const logger = createMockLogger();
 
 
