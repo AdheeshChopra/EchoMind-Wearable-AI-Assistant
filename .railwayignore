@@ -22,10 +22,9 @@ requirement.txt
 model_capabilities.yaml
 
 # Monorepo Exclusions (Not needed for server)
-client/
-client_old/
-mobile/
-docs/
-gsd-template/
-services/
-adapters/
+/client_old/
+/mobile/
+/docs/
+/gsd-template/
+/services/
+/adapters/
