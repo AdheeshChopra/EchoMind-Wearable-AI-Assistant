@@ -65,6 +65,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Copy only what's needed to run
+COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/server/node_modules ./node_modules
 COPY --from=builder /app/server/dist ./dist
 COPY --from=builder /app/server/prisma ./prisma

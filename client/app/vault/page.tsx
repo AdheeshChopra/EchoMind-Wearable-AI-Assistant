@@ -154,6 +154,7 @@ function VaultPage() {
 
 export default function VaultPageWrapper() {
   return (
+    // @ts-expect-error React 19 class component type mismatch
     <ErrorBoundary>
       <VaultPage />
     </ErrorBoundary>
