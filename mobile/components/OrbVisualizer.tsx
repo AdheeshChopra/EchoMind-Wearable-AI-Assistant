@@ -125,7 +125,7 @@ const STATE_VISUALS: Record<VoiceCaptureState, StateVisual> = {
 };
 
 // ─── Component ──────────────────────────────────────────────────────────────
-
+interface OrbVisualizerProps {
   captureState: VoiceCaptureState;
   captureMode?: CaptureMode | null;
   audioLevel?: number;
