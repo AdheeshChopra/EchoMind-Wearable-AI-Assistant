@@ -103,7 +103,6 @@ export const aiProcessingWorker = createWorker<AIProcessingJobData>(
       title: extraction.title,
       summary: extraction.summary,
       category: extraction.category,
-      importance: extraction.importance,
       importance: extraction.importance
     };
   },

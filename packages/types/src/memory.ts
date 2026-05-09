@@ -5,7 +5,7 @@ export const MemoryCategoryEnum = z.enum(['Task', 'Fact', 'Idea']);
 export type MemoryCategory = z.infer<typeof MemoryCategoryEnum>;
 
 // ─── Memory Source ────────────────────────────────────────────
-export const MemorySourceEnum = z.enum(['voice', 'text', 'import']);
+export const MemorySourceEnum = z.enum(['voice', 'text', 'import', 'meeting']);
 export type MemorySource = z.infer<typeof MemorySourceEnum>;
 
 // ─── Memory Extraction (from AI) ──────────────────────────────
@@ -46,7 +46,7 @@ export interface Memory {
   summary: string;
   category: MemoryCategory;
   importance: number;
-  sourceType: MemorySource;
+  sourceType: 'voice' | 'text' | 'import' | 'meeting';
   tags: string[];
   nextActionDate: Date | null;
   conversationId: string | null;
@@ -63,7 +63,7 @@ export interface MemorySearchResult extends Memory {
 // ─── Create Memory Request ────────────────────────────────────
 export const CreateMemorySchema = z.object({
   text: z.string().min(1, 'Transcript text is required'),
-  sourceType: MemorySourceEnum.default('text'),
+  sourceType: z.enum(['voice', 'text', 'import', 'meeting']).default('text'),
 });
 
 export type CreateMemoryRequest = z.infer<typeof CreateMemorySchema>;

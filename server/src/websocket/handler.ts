@@ -237,7 +237,7 @@ async function handleTextTranscript(
     }
 
     // Save memory (embedding generated async via BullMQ)
-    const memory = await memoryService.saveFromExtraction(userId, extraction, text, 'voice');
+    const memory = await memoryService.saveFromExtraction(userId, extraction, [{ speakerId: 'Speaker 0', text, startTime: 0, endTime: 0 }], 'voice');
 
     // Enqueue embedding generation (background job)
     await enqueueEmbedding({

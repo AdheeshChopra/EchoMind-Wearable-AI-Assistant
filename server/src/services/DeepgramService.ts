@@ -16,7 +16,7 @@ export class DeepgramService {
   private client;
 
   constructor() {
-    this.client = new DeepgramClient(env.DEEPGRAM_API_KEY);
+    this.client = new DeepgramClient(env.DEEPGRAM_API_KEY as any);
   }
 
   /**

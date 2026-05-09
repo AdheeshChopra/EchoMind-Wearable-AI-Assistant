@@ -20,7 +20,7 @@ export class MemoryService {
     userId: string,
     extraction: MemoryExtraction,
     segments: Array<{ speakerId: string; text: string; startTime: number; endTime: number }> = [],
-    sourceType: 'voice' | 'text' | 'import' = 'voice',
+    sourceType: 'voice' | 'text' | 'import' | 'meeting' = 'voice',
   ) {
     let nextActionDate: Date | null = null;
     if (extraction.category === 'Task') {
