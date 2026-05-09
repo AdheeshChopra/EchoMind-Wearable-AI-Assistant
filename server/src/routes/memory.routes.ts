@@ -87,7 +87,12 @@ router.post('/', requireAuth, validate(CreateMemorySchema), async (req: Request,
     return;
   }
 
-  const memory = await memoryService.saveFromExtraction(userId, extraction, text, sourceType);
+  const memory = await memoryService.saveFromExtraction(
+    userId, 
+    extraction, 
+    [{ speakerId: 'User', text, startTime: 0, endTime: 0 }], 
+    sourceType
+  );
 
   // Create reminder if extracted
   let reminder = null;

@@ -1,6 +1,6 @@
 import { Readable } from 'stream';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { env } from '../utils/env.js';
+import { env } from '../config/env.js';
 
 const genAI = new GoogleGenerativeAI(env.GOOGLE_API_KEY);
 

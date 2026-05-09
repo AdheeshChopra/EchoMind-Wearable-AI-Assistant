@@ -246,3 +246,18 @@ Provide the output in a clean JSON object matching the requested schema.`;
     return null;
   }
 }
+
+/**
+ * Extract useful context or entities from text (legacy debug helper).
+ */
+export async function extractContext(text: string) {
+  const model = genAI.getGenerativeModel({ model: CONSTANTS.GEMINI_MODEL });
+  const prompt = `Extract useful context or entities from the following text and summarize them concisely:\n\n"${text}"`;
+  try {
+    const result = await model.generateContent(prompt);
+    return { context: result.response.text() };
+  } catch (error: any) {
+    log.error({ error }, 'Failed to extract context');
+    return { context: null, error: error.message || 'Extraction failed' };
+  }
+}

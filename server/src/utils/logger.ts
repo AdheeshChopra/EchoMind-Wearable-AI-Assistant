@@ -1,22 +1,23 @@
-// Zero-G Mock: Anti-gravity adapter for @echomind/logger
-// This lightweight mock intercepts the missing package import to prevent crashes.
+import pino from 'pino';
 
-const createMockLogger = (name?: string) => {
-  const prefix = name ? `[${name}]` : '';
-  const logger = {
-    info: (arg1: any, arg2?: string) => console.log('[INFO]', prefix, arg2 || arg1, arg2 ? arg1 : ''),
-    error: (arg1: any, arg2?: string) => console.error('[ERROR]', prefix, arg2 || arg1, arg2 ? arg1 : ''),
-    warn: (arg1: any, arg2?: string) => console.warn('[WARN]', prefix, arg2 || arg1, arg2 ? arg1 : ''),
-    debug: (arg1: any, arg2?: string) => console.log('[DEBUG]', prefix, arg2 || arg1, arg2 ? arg1 : ''),
-    trace: (arg1: any, arg2?: string) => console.log('[TRACE]', prefix, arg2 || arg1, arg2 ? arg1 : ''),
-    fatal: (arg1: any, arg2?: string) => console.error('[FATAL]', prefix, arg2 || arg1, arg2 ? arg1 : ''),
-    child: () => logger
-  };
-  return logger;
+const isDevelopment = process.env.NODE_ENV === 'development';
+
+export const logger = pino({
+  level: process.env.LOG_LEVEL || 'info',
+  transport: isDevelopment ? {
+    target: 'pino-pretty',
+    options: {
+      colorize: true,
+      ignore: 'pid,hostname',
+      translateTime: 'SYS:standard',
+    },
+  } : undefined,
+});
+
+export const createLogger = (name?: string) => {
+  return name ? logger.child({ module: name }) : logger;
 };
 
-export const createLogger = (name?: string) => createMockLogger(name);
-export const withCorrelation = (logger: any, correlationId: string) => logger;
-export const logger = createMockLogger();
-
-
+export const withCorrelation = (loggerInstance: pino.Logger, correlationId: string) => {
+  return loggerInstance.child({ correlationId });
+};

@@ -3,7 +3,7 @@ import { performance } from 'perf_hooks';
 import { logger } from '../utils/logger.js';
 import prisma from '../lib/prisma.js';
 import { MemoryRepository } from '../repositories/MemoryRepository.js';
-import { extractMemory } from '../services/gemini.service.js';
+import { extractMemory } from '../ai/gemini.service.js';
 
 const memoryRepo = new MemoryRepository();
 

@@ -8,6 +8,7 @@ import { CONSTANTS } from '../config/constants.js';
 import { enqueueEmbedding } from './embedding.queue.js';
 import { deepgramService } from '../services/DeepgramService.js';
 import { extractMeetingInsights } from '../ai/gemini.service.js';
+import fs from 'fs';
 
 const log = createLogger('ai-queue');
 
@@ -48,8 +49,16 @@ export const aiProcessingWorker = createWorker<AIProcessingJobData>(
 
     // 1. Handle diarization if filePath is provided
     if (filePath && (sourceType === 'voice' || sourceType === 'meeting')) {
-      segments = await deepgramService.transcribeFile(filePath);
-      processingTranscript = segments.map(s => `[${s.speakerId}] ${s.text}`).join('\n');
+      try {
+        segments = await deepgramService.transcribeFile(filePath, language || 'en');
+        processingTranscript = segments.map(s => `[${s.speakerId}] ${s.text}`).join('\n');
+      } finally {
+        // Cleanup local file after transcription
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          log.info({ filePath }, 'Local audio file cleaned up');
+        }
+      }
     } else if (transcript) {
       segments = [{ speakerId: 'Speaker 0', text: transcript, startTime: 0, endTime: 0 }];
     }

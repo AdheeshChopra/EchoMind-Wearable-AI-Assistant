@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma.js';
-import { extractContext } from '../services/gemini.service.js';
+import { extractContext } from '../ai/gemini.service.js';
 
 export class DebugController {
   async debugDb(req: Request, res: Response): Promise<void> {

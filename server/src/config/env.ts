@@ -36,7 +36,7 @@ const envSchema = z.object({
   DEMO_MODE: z.string().default('false').transform((s) => s === 'true'),
 
   // Deepgram
-  DEEPGRAM_API_KEY: z.string().optional(),
+  DEEPGRAM_API_KEY: z.string().min(1, 'Deepgram API Key is required'),
 });
 
 const _env = envSchema.safeParse(process.env);

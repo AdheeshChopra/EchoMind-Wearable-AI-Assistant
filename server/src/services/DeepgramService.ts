@@ -1,6 +1,6 @@
 import { DeepgramClient } from '@deepgram/sdk';
 import fs from 'fs';
-import { env } from '../utils/env.js';
+import { env } from '../config/env.js';
 import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('deepgram-service');
@@ -13,10 +13,10 @@ export interface DeepgramSegment {
 }
 
 export class DeepgramService {
-  private client;
+  private client: DeepgramClient;
 
   constructor() {
-    this.client = new DeepgramClient(env.DEEPGRAM_API_KEY as any);
+    this.client = new DeepgramClient({ apiKey: env.DEEPGRAM_API_KEY });
   }
 
   /**
@@ -24,9 +24,9 @@ export class DeepgramService {
    * @param filePath Path to the local audio file.
    * @returns Array of speaker-labeled segments.
    */
-  async transcribeFile(filePath: string): Promise<DeepgramSegment[]> {
+  async transcribeFile(filePath: string, language: string = 'en'): Promise<DeepgramSegment[]> {
     try {
-      log.info({ filePath }, 'Starting diarized transcription with Deepgram');
+      log.info({ filePath, language }, 'Starting diarized transcription with Deepgram');
 
       if (!fs.existsSync(filePath)) {
         throw new Error(`File not found: ${filePath}`);
@@ -38,6 +38,7 @@ export class DeepgramService {
         audioBuffer,
         {
           model: 'nova-2',
+          language,
           smart_format: true,
           diarize: true,
           utterances: true,
