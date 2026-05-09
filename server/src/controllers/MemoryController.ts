@@ -18,11 +18,10 @@ export class MemoryController {
       }
 
       if (q && typeof q === 'string' && q.trim().length > 0) {
-        const searchStr = q.trim().split(' ').join(' | ');
         whereClause.OR = [
-          { summary: { search: searchStr } },
-          { rawTranscript: { search: searchStr } },
-          { title: { contains: q.trim(), mode: 'insensitive' } }
+          { summary: { contains: q.trim(), mode: 'insensitive' } },
+          { title: { contains: q.trim(), mode: 'insensitive' } },
+          { segments: { some: { text: { contains: q.trim(), mode: 'insensitive' } } } }
         ];
       }
 
@@ -30,6 +29,7 @@ export class MemoryController {
       const memories = await prisma.memory.findMany({
         where: whereClause,
         orderBy: { createdAt: 'desc' },
+        include: { segments: true },
       });
       const endTime = performance.now();
       logger.info(`[API] GET /api/memories — Latency: ${(endTime - startTime).toFixed(0)}ms | Found: ${memories.length}`);
@@ -66,11 +66,18 @@ export class MemoryController {
 
   async retryExtraction(req: Request, res: Response): Promise<void | Response> {
     try {
-      const memory = await prisma.memory.findUnique({ where: { id: String(req.params.id) } });
-      if (!memory || !memory.rawTranscript) return res.status(404).json({ error: 'Memory or transcript not found' });
+      const memory = await prisma.memory.findUnique({ 
+        where: { id: String(req.params.id) },
+        include: { segments: { orderBy: { startTime: 'asc' } } }
+      });
+      
+      if (!memory || memory.segments.length === 0) {
+        return res.status(404).json({ error: 'Memory or transcript segments not found' });
+      }
 
+      const fullTranscript = memory.segments.map(s => s.text).join(' ');
       const extractionStart = performance.now();
-      const newExtraction = await extractMemory(memory.rawTranscript);
+      const newExtraction = await extractMemory(fullTranscript);
       if (!newExtraction) return res.status(500).json({ error: 'Extraction failed' });
 
       const updated = await prisma.memory.update({

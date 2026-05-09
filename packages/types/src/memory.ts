@@ -28,6 +28,16 @@ export const MemoryExtractionSchema = z.object({
 
 export type MemoryExtraction = z.infer<typeof MemoryExtractionSchema>;
 
+export interface TranscriptSegment {
+  id: string;
+  memoryId: string;
+  speakerId: string;
+  text: string;
+  startTime: number;
+  endTime: number;
+  createdAt: Date;
+}
+
 // ─── Memory Record (from DB) ─────────────────────────────────
 export interface Memory {
   id: string;
@@ -36,13 +46,13 @@ export interface Memory {
   summary: string;
   category: MemoryCategory;
   importance: number;
-  rawTranscript: string | null;
   sourceType: MemorySource;
   tags: string[];
   nextActionDate: Date | null;
   conversationId: string | null;
   deletedAt: Date | null;
   createdAt: Date;
+  segments?: TranscriptSegment[];
 }
 
 // ─── Memory Search Result ─────────────────────────────────────

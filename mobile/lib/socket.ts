@@ -1,3 +1,5 @@
+import ENV from './env';
+
 type Listener = (data: any) => void;
 
 export class EchoMindSocket {
@@ -25,7 +27,7 @@ export class EchoMindSocket {
   }
 
   public static getInstance(): EchoMindSocket {
-    const wsUrl = process.env.EXPO_PUBLIC_WS_URL || 'wss://echomind-server-production.up.railway.app';
+    const wsUrl = ENV.WS_URL;
     if (!EchoMindSocket.instance) {
       EchoMindSocket.instance = new EchoMindSocket(wsUrl);
     }

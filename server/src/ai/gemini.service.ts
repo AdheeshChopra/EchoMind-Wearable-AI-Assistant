@@ -6,6 +6,13 @@ import { CONSTANTS } from '../config/constants.js';
 import { detectLanguage, getLanguageInstruction, type SupportedLanguage } from '../nlp/language.service.js';
 import { extractEntities } from '../nlp/entity-extractor.js';
 
+export interface MeetingInsights {
+  mainPoints: string[];
+  decisions: string[];
+  actionItems: Array<{ task: string; assignee: string; dueDate?: string }>;
+  nextSteps: string[];
+}
+
 const log = createLogger('gemini');
 
 const genAI = new GoogleGenerativeAI(env.GOOGLE_API_KEY);
@@ -177,6 +184,65 @@ Answer based ONLY on the provided memory context. If you don't have enough infor
     return result.response.text() || null;
   } catch (error) {
     log.error({ error }, 'Failed to answer query');
+    return null;
+  }
+}
+
+/**
+ * Specialized extraction for long-form meeting transcripts.
+ * Focuses on diarized context, speaker dynamics, and project-level insights.
+ */
+export async function extractMeetingInsights(transcript: string): Promise<MeetingInsights | null> {
+  const systemPrompt = `You are the EchoMind Meeting Analyst. Your goal is to process a meeting transcript (potentially with multiple speakers) and extract high-level strategic insights.
+
+INSTRUCTIONS:
+1. Identify the 3-5 most critical "Main Points" discussed.
+2. List any specific "Decisions" that were finalized during the meeting.
+3. Extract "Action Items" including the task description, the person assigned (if mentioned), and any deadlines.
+4. Summarize the "Next Steps" for the team.
+
+If the transcript is in Hindi or Hinglish, provide the insights in the same language style but ensure the structure remains JSON.
+
+FORMAT:
+Provide the output in a clean JSON object matching the requested schema.`;
+
+  try {
+    const model = genAI.getGenerativeModel({ model: CONSTANTS.GEMINI_MODEL });
+    const result = await model.generateContent({
+      contents: [
+        { role: 'user', parts: [{ text: systemPrompt }] },
+        { role: 'user', parts: [{ text: `Meeting Transcript:\n${transcript}` }] },
+      ],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: SchemaType.OBJECT,
+          properties: {
+            mainPoints: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+            decisions: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+            actionItems: {
+              type: SchemaType.ARRAY,
+              items: {
+                type: SchemaType.OBJECT,
+                properties: {
+                  task: { type: SchemaType.STRING },
+                  assignee: { type: SchemaType.STRING },
+                  dueDate: { type: SchemaType.STRING, nullable: true },
+                },
+                required: ['task', 'assignee'],
+              },
+            },
+            nextSteps: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+          },
+          required: ['mainPoints', 'decisions', 'actionItems', 'nextSteps'],
+        },
+      },
+    });
+
+    const text = result.response.text();
+    return text ? JSON.parse(text) : null;
+  } catch (error) {
+    log.error({ error }, 'Failed to extract meeting insights');
     return null;
   }
 }

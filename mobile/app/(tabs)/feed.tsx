@@ -5,6 +5,7 @@ import { EchoMindSocket } from '../../lib/socket';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
+import ENV from '../../lib/env';
 
 interface Memory {
   id: string;
@@ -16,7 +17,7 @@ interface Memory {
   createdAt: string;
 }
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://echomind-server-production.up.railway.app';
+const API_URL = ENV.API_URL;
 
 const getCategoryIcon = (cat: string) => {
   switch (cat?.toLowerCase()) {

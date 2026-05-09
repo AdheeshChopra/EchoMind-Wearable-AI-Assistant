@@ -32,9 +32,10 @@ import {
   CheckCircle,
   AlertCircle,
   ShieldAlert,
+  Users,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import type { VoiceCaptureState } from '../hooks/useEchoMindVoice';
+import type { VoiceCaptureState, CaptureMode } from '../hooks/useEchoMindVoice';
 
 // ─── State Config ───────────────────────────────────────────────────────────
 
@@ -125,13 +126,14 @@ const STATE_VISUALS: Record<VoiceCaptureState, StateVisual> = {
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-interface OrbVisualizerProps {
   captureState: VoiceCaptureState;
+  captureMode?: CaptureMode | null;
   audioLevel?: number;
 }
 
 export function OrbVisualizer({
   captureState,
+  captureMode,
   audioLevel = 0,
 }: OrbVisualizerProps) {
   const visual = STATE_VISUALS[captureState];
@@ -355,6 +357,8 @@ export function OrbVisualizer({
                 <Animated.View style={animatedProcessingIcon}>
                   {visual.icon}
                 </Animated.View>
+              ) : captureMode === 'meeting' && (captureState === 'recording' || captureState === 'idle') ? (
+                <Users color={visual.dotColor === '#444' ? "rgba(252, 248, 254, 0.5)" : visual.dotColor} size={42} strokeWidth={1.5} />
               ) : (
                 visual.icon
               )}

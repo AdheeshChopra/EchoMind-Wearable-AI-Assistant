@@ -8,8 +8,40 @@ import { ReminderService } from '../reminders/reminder.service.js';
 import { CreateMemorySchema, SearchMemorySchema } from '@echomind/types';
 import { ReminderExtractionSchema } from '@echomind/types';
 import type { ApiResponse } from '@echomind/types';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { enqueueAIProcessing } from '../queues/ai-processing.queue.js';
 
 const router = Router();
+
+const uploadDir = 'uploads';
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.wav', '.m4a', '.mp3', '.webm', '.aac', '.ogg'];
+    if (allowed.includes(path.extname(file.originalname).toLowerCase())) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Supported: .wav, .m4a, .mp3, .webm, .aac, .ogg'));
+    }
+  }
+});
 
 // ─── GET /api/memories ────────────────────────────────────────
 router.get('/', requireAuth, async (req: Request, res: Response) => {
@@ -92,6 +124,36 @@ router.get('/search', requireAuth, validate(SearchMemorySchema, 'query'), async 
   }
 
   res.json({ success: true, data: { memories: results }, meta: { total: results.length } });
+});
+
+// ─── POST /api/memories/upload ──────────────────────────────
+router.post('/upload', requireAuth, upload.single('audio'), async (req: Request, res: Response) => {
+  if (!req.file) {
+    res.status(400).json({ success: false, error: { code: 'NO_FILE', message: 'No audio file provided' } });
+    return;
+  }
+
+  const userId = req.user!.userId;
+  const filePath = req.file.path;
+
+  try {
+    const jobId = await enqueueAIProcessing({
+      userId,
+      filePath,
+      sourceType: (req.body.sourceType as any) || 'voice',
+      language: req.body.language || 'en'
+    });
+
+    res.status(202).json({ 
+      success: true, 
+      data: { 
+        jobId,
+        message: 'Audio upload successful, processing started'
+      } 
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: { code: 'QUEUE_ERROR', message: 'Failed to enqueue AI processing' } });
+  }
 });
 
 // ─── DELETE /api/memories/:id ─────────────────────────────────

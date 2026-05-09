@@ -34,6 +34,9 @@ const envSchema = z.object({
 
   // Feature flags
   DEMO_MODE: z.string().default('false').transform((s) => s === 'true'),
+
+  // Deepgram
+  DEEPGRAM_API_KEY: z.string().optional(),
 });
 
 const _env = envSchema.safeParse(process.env);

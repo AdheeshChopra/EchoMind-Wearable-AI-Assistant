@@ -28,8 +28,16 @@ export class MemoryRepository {
         summary: data.summary,
         category: data.category,
         importance: data.importance,
-        rawTranscript,
+        sourceType: 'voice',
         nextActionDate,
+        segments: {
+          create: {
+            speakerId: 'Speaker 0',
+            text: rawTranscript,
+            startTime: 0,
+            endTime: 0
+          }
+        }
       },
     });
 
@@ -70,7 +78,6 @@ export class MemoryRepository {
           summary, 
           category, 
           importance, 
-          "rawTranscript", 
           "createdAt",
           1 - (embedding <=> ${embeddingString}::vector) as similarity
         FROM "Memory"

@@ -23,12 +23,11 @@
  * Uses expo-speech-recognition for STT with continuous mode + interim results.
  */
 import { useState, useCallback, useRef, useEffect } from 'react';
-import {
-  ExpoSpeechRecognitionModule,
-  useSpeechRecognitionEvent,
-} from 'expo-speech-recognition';
+import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import { Vibration, Platform } from 'react-native';
+import { Audio } from 'expo-av';
 import { EchoMindSocket } from '../lib/socket';
+import ENV from '../lib/env';
 import {
   getVoiceSettings,
   getSTTLocale,
@@ -51,7 +50,7 @@ export type VoiceCaptureState =
   | 'error'
   | 'consent_required';
 
-export type CaptureMode = 'auto' | 'manual_passive' | 'manual_instant';
+export type CaptureMode = 'auto' | 'manual_passive' | 'manual_instant' | 'meeting';
 
 export interface VoiceState {
   captureState: VoiceCaptureState;
@@ -63,6 +62,7 @@ export interface VoiceState {
   sessionCount: number;  // Total captures this session
   detectedLanguage: MobileLanguage;
   sttLocale: string;
+  isUploading: boolean;
 }
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -87,6 +87,7 @@ export const useEchoMindVoice = () => {
     sessionCount: 0,
     detectedLanguage: 'en',
     sttLocale: 'en-US',
+    isUploading: false,
   });
 
   // Refs for timers and tracking
@@ -103,6 +104,7 @@ export const useEchoMindVoice = () => {
   const sessionSentences = useRef<string[]>([]);
   const wordCountSinceCheck = useRef(0);
   const currentLocaleRef = useRef('en-US');
+  const recordingRef = useRef<Audio.Recording | null>(null);
 
   // Keep refs in sync with state
   useEffect(() => {
@@ -145,6 +147,63 @@ export const useEchoMindVoice = () => {
       lastSentText.current = trimmed;
     }
   }, []);
+
+  const uploadAudio = useCallback(async (uri: string) => {
+    setState(s => ({ ...s, isUploading: true, captureState: 'processing' }));
+    
+    try {
+      const formData = new FormData();
+      const filename = uri.split('/').pop() || 'recording.m4a';
+      
+      // @ts-ignore
+      formData.append('audio', {
+        uri,
+        name: filename,
+        type: 'audio/m4a',
+      });
+      
+      formData.append('title', `Meeting ${new Date().toLocaleString()}`);
+      formData.append('sourceType', 'meeting');
+
+      const response = await fetch(`${ENV.API_URL}/api/memories/upload`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('Upload success:', result);
+      
+      setState(s => ({
+        ...s,
+        isUploading: false,
+        captureState: 'saved',
+        sessionCount: s.sessionCount + 1,
+      }));
+
+      vibrate([0, 50, 100, 50]);
+
+      setTimeout(() => {
+        setState(s => ({ ...s, captureState: 'idle', captureMode: null }));
+      }, SAVED_DISPLAY_DURATION_MS);
+
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      setState(s => ({
+        ...s,
+        isUploading: false,
+        captureState: 'error',
+        error: error.message || 'Failed to upload recording',
+      }));
+    }
+  }, [vibrate]);
 
   const resetPartialTimer = useCallback(() => {
     if (partialFlushTimer.current) clearTimeout(partialFlushTimer.current);
@@ -543,6 +602,83 @@ export const useEchoMindVoice = () => {
   }, [stopSTT, vibrate]);
 
   /**
+   * Start Meeting/Live Recording (expo-av)
+   */
+  const startMeetingRecording = useCallback(async () => {
+    try {
+      const permission = await Audio.requestPermissionsAsync();
+      if (!permission.granted) {
+        setState(s => ({
+          ...s,
+          captureState: 'error',
+          error: 'Microphone permission required for meeting recording',
+        }));
+        return;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      clearAllTimers();
+      
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      
+      recordingRef.current = recording;
+      
+      setState(s => ({
+        ...s,
+        captureMode: 'meeting',
+        captureState: 'recording',
+        error: null,
+      }));
+      
+      vibrate(50);
+      console.log('Meeting recording started');
+
+    } catch (err: any) {
+      console.error('Failed to start meeting recording', err);
+      setState(s => ({
+        ...s,
+        captureState: 'error',
+        error: `Failed to start recording: ${err.message}`,
+      }));
+    }
+  }, [clearAllTimers, vibrate]);
+
+  /**
+   * Stop Meeting/Live Recording and Upload
+   */
+  const stopMeetingRecording = useCallback(async () => {
+    if (!recordingRef.current) return;
+
+    try {
+      vibrate(30);
+      const recording = recordingRef.current;
+      recordingRef.current = null;
+      
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      
+      if (uri) {
+        await uploadAudio(uri);
+      } else {
+        setState(s => ({ ...s, captureState: 'idle', captureMode: null }));
+      }
+    } catch (err: any) {
+      console.error('Failed to stop meeting recording', err);
+      setState(s => ({
+        ...s,
+        captureState: 'error',
+        error: `Failed to stop recording: ${err.message}`,
+      }));
+    }
+  }, [uploadAudio, vibrate]);
+
+  /**
    * Disable all capture modes and return to idle.
    */
   const disableCapture = useCallback(() => {
@@ -595,6 +731,8 @@ export const useEchoMindVoice = () => {
     disableCapture,
     dismissError,
     setLanguage,
+    startMeetingRecording,
+    stopMeetingRecording,
   };
 };
 

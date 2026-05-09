@@ -18,7 +18,10 @@ import {
   RefreshCw, 
   Settings as SettingsIcon,
   Zap,
-  ZapOff
+  ZapOff,
+  Users,
+  Mic,
+  MicOff
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEchoMindVoice } from '../../hooks/useEchoMindVoice';
@@ -49,8 +52,13 @@ export default function ListenerScreen() {
     startInstantRecord,
     stopInstantRecord,
     disableCapture,
-    dismissError
+    dismissError,
+    startMeetingRecording,
+    stopMeetingRecording,
+    isUploading
   } = useEchoMindVoice();
+
+  const [isMeetingMode, setIsMeetingMode] = useState(false);
 
   const [wsStatus, setWsStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
   const [showSettings, setShowSettings] = useState(false);
@@ -91,7 +99,15 @@ export default function ListenerScreen() {
   }, []);
 
   const handleOrbPress = () => {
-    togglePassiveMode();
+    if (isMeetingMode) {
+      if (captureState === 'recording') {
+        stopMeetingRecording();
+      } else if (captureState === 'idle' || captureState === 'passive_listening') {
+        startMeetingRecording();
+      }
+    } else {
+      togglePassiveMode();
+    }
   };
 
   const handleOrbLongPress = () => {
@@ -150,13 +166,15 @@ export default function ListenerScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.iconButton}>
-          {isAuto ? (
-             <Zap color="#4af8e3" size={22} />
-          ) : (
-             <ZapOff color="#333" size={22} />
-          )}
-        </View>
+        <TouchableOpacity 
+          onPress={() => {
+            setIsMeetingMode(!isMeetingMode);
+            if (captureMode) disableCapture();
+          }}
+          style={[styles.iconButton, isMeetingMode && styles.iconButtonActive]}
+        >
+          <Users color={isMeetingMode ? "#4af8e3" : "#acaab0"} size={22} />
+        </TouchableOpacity>
       </View>
 
       {showSettings && (
@@ -195,12 +213,15 @@ export default function ListenerScreen() {
            ) : (
              <View style={styles.modeIndicator}>
                 <Text style={styles.modeText}>
-                  {captureMode === 'auto' ? 'AUTO-CAPTURE ACTIVE' : 
+                  {isMeetingMode ? 'MEETING MODE ACTIVE' :
+                   captureMode === 'auto' ? 'AUTO-CAPTURE ACTIVE' : 
                    captureMode === 'manual_passive' ? 'PASSIVE LISTENING' :
                    captureMode === 'manual_instant' ? 'INSTANT RECORD' : 'TAP TO START PASSIVE MODE'}
                 </Text>
                 <Text style={styles.modeSubtext}>
-                  {captureMode === 'auto' ? 'Monitoring environment...' : 
+                  {isMeetingMode ? 
+                   (captureState === 'recording' ? 'Recording high-quality audio...' : 'Tap orb to start recording') :
+                   captureMode === 'auto' ? 'Monitoring environment...' : 
                    captureMode === 'manual_passive' ? 'Waiting for speech...' :
                    captureMode === 'manual_instant' ? 'Recording now...' : 'Hold orb for instant capture'}
                 </Text>
@@ -216,10 +237,12 @@ export default function ListenerScreen() {
                 {displayTranscript || '...'}
               </Text>
             </Animated.View>
-          ) : captureState === 'processing' ? (
+          ) : captureState === 'processing' || isUploading ? (
             <Animated.View entering={FadeIn} style={styles.processingBox}>
                <RefreshCw color="#c799ff" size={24} style={styles.spin} />
-               <Text style={styles.processingText}>Syncing memory to neural cloud...</Text>
+               <Text style={styles.processingText}>
+                 {isUploading ? 'Uploading to secure vault...' : 'Syncing memory to neural cloud...'}
+               </Text>
             </Animated.View>
           ) : captureState === 'saved' ? (
             <Animated.View entering={FadeIn} style={styles.savedBox}>
@@ -287,6 +310,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  iconButtonActive: {
+    backgroundColor: 'rgba(74, 248, 227, 0.1)',
+    borderColor: 'rgba(74, 248, 227, 0.3)',
   },
   statusPillContainer: {
     flex: 1,

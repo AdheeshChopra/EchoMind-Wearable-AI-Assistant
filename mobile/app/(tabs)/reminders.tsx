@@ -5,8 +5,9 @@ import { BlurView } from 'expo-blur';
 import { Bell, Calendar, Filter, Plus } from 'lucide-react-native';
 import { ReminderCard } from '../../components/ReminderCard';
 import { format, isToday, isFuture, parseISO } from 'date-fns';
+import ENV from '../../lib/env';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
+const API_URL = ENV.API_URL;
 
 interface Reminder {
   id: string;

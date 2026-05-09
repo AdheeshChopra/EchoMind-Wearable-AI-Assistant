@@ -38,13 +38,6 @@ model Session {
   @@index([userId])
 }
 
-// ─── Transcript ───────────────────────────────────────────────
-model Transcript {
-  id        String   @id @default(uuid())
-  text      String
-  createdAt DateTime @default(now())
-}
-
 // ─── Memory ───────────────────────────────────────────────────
 model Memory {
   id             String    @id @default(uuid())
@@ -54,20 +47,35 @@ model Memory {
   summary        String
   category       String
   importance     Float
-  rawTranscript  String?
-  sourceType     String    @default("voice")
   language       String    @default("en")
   tags           String[]  @default([])
   nextActionDate DateTime?
+  sourceType     String    @default("audio")
   embedding      Unsupported("vector(3072)")?
   deletedAt      DateTime?
   createdAt      DateTime  @default(now())
 
+  segments       TranscriptSegment[]
   reminders      Reminder[]
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([category])
   @@index([deletedAt])
+}
+
+// ─── Transcript Segment ───────────────────────────────────────
+model TranscriptSegment {
+  id        String   @id @default(uuid())
+  memoryId  String
+  memory    Memory   @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+  speakerId String
+  text      String
+  startTime Float
+  endTime   Float
+  createdAt DateTime @default(now())
+
+  @@index([memoryId])
+  @@index([speakerId])
 }
 
 // ─── Reminder ─────────────────────────────────────────────────

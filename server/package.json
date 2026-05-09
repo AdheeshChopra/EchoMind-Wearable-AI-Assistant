@@ -14,8 +14,8 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@deepgram/sdk": "^5.1.0",
     "@echomind/types": "file:../packages/types",
-
     "@google/genai": "^1.52.0",
     "@google/generative-ai": "^0.24.1",
     "@neondatabase/serverless": "^1.1.0",
@@ -29,9 +29,11 @@
     "expo-server-sdk": "^6.1.0",
     "express": "^4.21.0",
     "form-data": "^4.0.0",
+    "googleapis": "^171.4.0",
     "helmet": "^8.0.0",
     "ioredis": "^5.4.1",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.1.1",
     "node-cron": "^3.0.3",
     "pg": "^8.13.1",
     "ws": "^8.18.0",
@@ -41,6 +43,7 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/jsonwebtoken": "^9.0.6",
+    "@types/multer": "^2.1.0",
     "@types/node": "^20.0.0",
     "@types/node-cron": "^3.0.11",
     "@types/pg": "^8.20.0",

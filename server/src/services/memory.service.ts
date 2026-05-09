@@ -19,7 +19,7 @@ export class MemoryService {
   async saveFromExtraction(
     userId: string,
     extraction: MemoryExtraction,
-    rawTranscript: string,
+    segments: Array<{ speakerId: string; text: string; startTime: number; endTime: number }> = [],
     sourceType: 'voice' | 'text' | 'import' = 'voice',
   ) {
     let nextActionDate: Date | null = null;
@@ -28,8 +28,9 @@ export class MemoryService {
       nextActionDate.setHours(nextActionDate.getHours() + 24);
     }
 
-    // Detect language from the raw transcript
-    const langResult = detectLanguage(rawTranscript);
+    // Combine segment text for language detection if available, else use title
+    const combinedText = segments.length > 0 ? segments.map(s => s.text).join(' ') : extraction.title;
+    const langResult = detectLanguage(combinedText);
 
     // 1. Save memory without embedding
     const memory = await prisma.memory.create({
@@ -39,11 +40,15 @@ export class MemoryService {
         summary: extraction.summary,
         category: extraction.category,
         importance: extraction.importance,
-        rawTranscript,
         sourceType,
         language: langResult.language,
         tags: extraction.tags || [],
         nextActionDate,
+        segments: {
+          createMany: {
+            data: segments
+          }
+        }
       },
     });
 
@@ -102,11 +107,13 @@ export class MemoryService {
   async retryExtraction(userId: string, memoryId: string, extractFn: (text: string) => Promise<MemoryExtraction | null>) {
     const memory = await prisma.memory.findFirst({
       where: { id: memoryId, userId, deletedAt: null },
+      include: { segments: true }
     });
 
-    if (!memory || !memory.rawTranscript) return null;
+    if (!memory || (!memory.segments || memory.segments.length === 0)) return null;
 
-    const extraction = await extractFn(memory.rawTranscript);
+    const combinedText = memory.segments.map(s => s.text).join(' ');
+    const extraction = await extractFn(combinedText);
     if (!extraction) return null;
 
     const updated = await prisma.memory.update({

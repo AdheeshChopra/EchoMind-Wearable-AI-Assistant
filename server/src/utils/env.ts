@@ -6,6 +6,7 @@ const envSchema = z.object({
   PORT: z.string().default('8080'),
   DATABASE_URL: z.string().url(),
   GOOGLE_API_KEY: z.string().min(1, 'Google API Key is required'),
+  DEEPGRAM_API_KEY: z.string().min(1, 'Deepgram API Key is required'),
   WHISPER_URL: z.string().url().default('http://localhost:8000/asr'),
   LOG_LEVEL: z.string().default('info'),
   DEMO_MODE: z.string().default('false').transform((s) => s === 'true'),

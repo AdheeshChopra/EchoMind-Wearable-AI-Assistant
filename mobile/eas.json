@@ -17,7 +17,15 @@
         "EXPO_PUBLIC_WS_URL": "wss://echomind-server-production.up.railway.app"
       }
     },
-    "production": {}
+    "production": {
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://echomind-api.onrender.com",
+        "EXPO_PUBLIC_WS_URL": "wss://echomind-api.onrender.com"
+      }
+    }
   },
   "submit": {
     "production": {}

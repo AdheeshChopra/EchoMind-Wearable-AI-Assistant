@@ -1,0 +1,62 @@
+services:
+  - type: web
+    name: echomind-api
+    runtime: node
+    region: singapore # Adjust as needed
+    plan: free
+    rootDirectory: server
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: PROCESS_TYPE
+        value: web
+      - key: DATABASE_URL # Use external pgvector Neon DB
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: echomind-redis
+          property: connectionString
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+
+  - type: worker
+    name: echomind-worker
+    runtime: node
+    region: singapore
+    plan: free
+    rootDirectory: server
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PROCESS_TYPE
+        value: worker
+      - key: DATABASE_URL # Use external pgvector Neon DB
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: echomind-redis
+          property: connectionString
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: DEEPGRAM_API_KEY
+        sync: false
+
+# Managed Redis for BullMQ
+  - type: redis
+    name: echomind-redis
+    plan: free
+    ipAllowList: [] # Only allow internal traffic
