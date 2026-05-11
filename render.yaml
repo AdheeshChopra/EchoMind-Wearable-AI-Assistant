@@ -5,7 +5,7 @@ services:
     region: singapore # Adjust as needed
     plan: free
     rootDirectory: server
-    buildCommand: npm install && npm run build
+    buildCommand: npm install && npm run build && npx prisma migrate deploy
     startCommand: npm run start
     envVars:
       - key: NODE_ENV
@@ -29,6 +29,8 @@ services:
         generateValue: true
       - key: JWT_REFRESH_SECRET
         generateValue: true
+      - key: CORS_ORIGIN
+        value: '*'
 
   - type: worker
     name: echomind-worker
@@ -36,7 +38,7 @@ services:
     region: singapore
     plan: free
     rootDirectory: server
-    buildCommand: npm install && npm run build
+    buildCommand: npm install && npm run build && npx prisma migrate deploy
     startCommand: npm run start
     envVars:
       - key: NODE_ENV

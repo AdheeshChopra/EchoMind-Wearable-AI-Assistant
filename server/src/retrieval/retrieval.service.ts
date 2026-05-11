@@ -28,26 +28,32 @@ export class RetrievalService {
     query: string,
     limit: number = 10,
   ): Promise<MemorySearchResult[]> {
-    const queryEmbedding = await embeddingService.generate(query);
-    const vec = EmbeddingService.toSqlVector(queryEmbedding);
+    try {
+      const queryEmbedding = await embeddingService.generate(query);
+      const vec = EmbeddingService.toSqlVector(queryEmbedding);
 
-    const results = await prisma.$queryRaw<MemorySearchResult[]>`
-      SELECT
-        id, "userId", title, summary, category, importance,
-        "rawTranscript", "sourceType", language, tags, "nextActionDate",
-        "createdAt", "deletedAt",
-        1 - (embedding <=> ${vec}::vector) as similarity
-      FROM "Memory"
-      WHERE embedding IS NOT NULL
-        AND "userId" = ${userId}
-        AND "deletedAt" IS NULL
-        AND 1 - (embedding <=> ${vec}::vector) >= ${CONSTANTS.SIMILARITY_THRESHOLD}
-      ORDER BY embedding <=> ${vec}::vector ASC
-      LIMIT ${limit}
-    `;
+      const results = await prisma.$queryRaw<MemorySearchResult[]>`
+        SELECT
+          id, "userId", title, summary, category, importance,
+          "sourceType", language, tags, "nextActionDate",
+          "createdAt", "deletedAt",
+          (SELECT json_agg(s.*) FROM "TranscriptSegment" s WHERE s."memoryId" = m.id) as segments,
+          1 - (embedding <=> ${vec}::vector) as similarity
+        FROM "Memory" m
+        WHERE embedding IS NOT NULL
+          AND "userId" = ${userId}
+          AND "deletedAt" IS NULL
+          AND 1 - (embedding <=> ${vec}::vector) >= ${CONSTANTS.SIMILARITY_THRESHOLD}
+        ORDER BY embedding <=> ${vec}::vector ASC
+        LIMIT ${limit}
+      `;
 
-    log.info({ userId, query: query.substring(0, 50), results: results.length }, 'Semantic search');
-    return results;
+      log.info({ userId, query: query.substring(0, 50), results: results.length }, 'Semantic search successful');
+      return results;
+    } catch (err) {
+      log.error({ userId, err, query: query.substring(0, 50) }, 'Semantic search failed');
+      throw err;
+    }
   }
 
   /**
@@ -66,7 +72,7 @@ export class RetrievalService {
       deletedAt: null,
       OR: [
         { summary: { search: searchStr } },
-        { rawTranscript: { search: searchStr } },
+        { segments: { some: { text: { search: searchStr } } } },
         { title: { contains: query.trim(), mode: 'insensitive' } },
         { tags: { hasSome: query.trim().toLowerCase().split(/\s+/) } },
       ],
@@ -80,7 +86,10 @@ export class RetrievalService {
       where: whereClause,
       orderBy: { createdAt: 'desc' },
       take: limit,
-      include: { reminders: { where: { status: { not: 'completed' } }, take: 1 } },
+      include: { 
+        reminders: { where: { status: { not: 'completed' } }, take: 1 },
+        segments: true 
+      },
     });
 
     log.info({ userId, query: query.substring(0, 50), results: results.length }, 'Keyword search');

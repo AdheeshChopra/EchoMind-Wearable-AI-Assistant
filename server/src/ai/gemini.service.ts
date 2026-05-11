@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
+import { GoogleGenAI, Type } from '@google/genai';
 import { createLogger } from '../utils/logger.js';
 import { MemoryExtractionSchema, type MemoryExtraction } from '@echomind/types';
 import { env } from '../config/env.js';
@@ -15,7 +15,8 @@ export interface MeetingInsights {
 
 const log = createLogger('gemini');
 
-const genAI = new GoogleGenerativeAI(env.GOOGLE_API_KEY);
+// Initialize the new @google/genai client
+const ai = new GoogleGenAI({ apiKey: env.GOOGLE_API_KEY });
 
 /**
  * Memory extraction using Gemini with bilingual support.
@@ -71,33 +72,32 @@ If time/date/deadline is mentioned, extract a "reminder" object:
 - isCritical: true if urgent language detected ("zaroor", "must", "critical", "urgent")`;
 
   try {
-    const model = genAI.getGenerativeModel({ model: CONSTANTS.GEMINI_MODEL });
-    const result = await model.generateContent({
+    const response = await ai.models.generateContent({
+      model: CONSTANTS.GEMINI_MODEL,
       contents: [
         { role: 'user', parts: [{ text: systemPrompt }] },
         { role: 'user', parts: [{ text: `Transcript: "${transcript}"` }] },
       ],
-      generationConfig: {
+      config: {
         responseMimeType: 'application/json',
-        responseSchema: {
-          type: SchemaType.OBJECT,
+        responseJsonSchema: {
+          type: Type.OBJECT,
           properties: {
-            title: { type: SchemaType.STRING },
-            summary: { type: SchemaType.STRING },
-            category: { type: SchemaType.STRING, description: 'Fact, Task, or Idea' },
-            importance: { type: SchemaType.NUMBER },
-            tags: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+            title: { type: Type.STRING },
+            summary: { type: Type.STRING },
+            category: { type: Type.STRING, description: 'Fact, Task, or Idea' },
+            importance: { type: Type.NUMBER },
+            tags: { type: Type.ARRAY, items: { type: Type.STRING } },
             reminder: {
-              type: SchemaType.OBJECT,
-              nullable: true,
+              type: Type.OBJECT,
               properties: {
-                title: { type: SchemaType.STRING },
-                description: { type: SchemaType.STRING },
-                dueAt: { type: SchemaType.STRING, description: 'ISO 8601' },
-                category: { type: SchemaType.STRING },
-                priority: { type: SchemaType.STRING },
-                repeatRule: { type: SchemaType.STRING, nullable: true },
-                isCritical: { type: SchemaType.BOOLEAN },
+                title: { type: Type.STRING },
+                description: { type: Type.STRING },
+                dueAt: { type: Type.STRING, description: 'ISO 8601' },
+                category: { type: Type.STRING },
+                priority: { type: Type.STRING },
+                repeatRule: { type: Type.STRING },
+                isCritical: { type: Type.BOOLEAN },
               },
               required: ['title', 'dueAt', 'category', 'priority'],
             },
@@ -107,7 +107,7 @@ If time/date/deadline is mentioned, extract a "reminder" object:
       },
     });
 
-    const text = result.response.text();
+    const text = response.text;
     if (!text) {
       log.warn('Gemini returned empty response');
       return null;
@@ -162,8 +162,8 @@ export async function answerQuery(
   const langInstruction = getLanguageInstruction(language);
 
   try {
-    const model = genAI.getGenerativeModel({ model: CONSTANTS.GEMINI_MODEL });
-    const result = await model.generateContent({
+    const response = await ai.models.generateContent({
+      model: CONSTANTS.GEMINI_MODEL,
       contents: [{
         role: 'user',
         parts: [{
@@ -181,7 +181,7 @@ Answer based ONLY on the provided memory context. If you don't have enough infor
       }],
     });
 
-    return result.response.text() || null;
+    return response.text || null;
   } catch (error) {
     log.error({ error }, 'Failed to answer query');
     return null;
@@ -207,39 +207,39 @@ FORMAT:
 Provide the output in a clean JSON object matching the requested schema.`;
 
   try {
-    const model = genAI.getGenerativeModel({ model: CONSTANTS.GEMINI_MODEL });
-    const result = await model.generateContent({
+    const response = await ai.models.generateContent({
+      model: CONSTANTS.GEMINI_MODEL,
       contents: [
         { role: 'user', parts: [{ text: systemPrompt }] },
         { role: 'user', parts: [{ text: `Meeting Transcript:\n${transcript}` }] },
       ],
-      generationConfig: {
+      config: {
         responseMimeType: 'application/json',
-        responseSchema: {
-          type: SchemaType.OBJECT,
+        responseJsonSchema: {
+          type: Type.OBJECT,
           properties: {
-            mainPoints: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-            decisions: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+            mainPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
+            decisions: { type: Type.ARRAY, items: { type: Type.STRING } },
             actionItems: {
-              type: SchemaType.ARRAY,
+              type: Type.ARRAY,
               items: {
-                type: SchemaType.OBJECT,
+                type: Type.OBJECT,
                 properties: {
-                  task: { type: SchemaType.STRING },
-                  assignee: { type: SchemaType.STRING },
-                  dueDate: { type: SchemaType.STRING, nullable: true },
+                  task: { type: Type.STRING },
+                  assignee: { type: Type.STRING },
+                  dueDate: { type: Type.STRING },
                 },
                 required: ['task', 'assignee'],
               },
             },
-            nextSteps: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+            nextSteps: { type: Type.ARRAY, items: { type: Type.STRING } },
           },
           required: ['mainPoints', 'decisions', 'actionItems', 'nextSteps'],
         },
       },
     });
 
-    const text = result.response.text();
+    const text = response.text;
     return text ? JSON.parse(text) : null;
   } catch (error) {
     log.error({ error }, 'Failed to extract meeting insights');
@@ -251,11 +251,15 @@ Provide the output in a clean JSON object matching the requested schema.`;
  * Extract useful context or entities from text (legacy debug helper).
  */
 export async function extractContext(text: string) {
-  const model = genAI.getGenerativeModel({ model: CONSTANTS.GEMINI_MODEL });
-  const prompt = `Extract useful context or entities from the following text and summarize them concisely:\n\n"${text}"`;
   try {
-    const result = await model.generateContent(prompt);
-    return { context: result.response.text() };
+    const response = await ai.models.generateContent({
+      model: CONSTANTS.GEMINI_MODEL,
+      contents: [{
+        role: 'user',
+        parts: [{ text: `Extract useful context or entities from the following text and summarize them concisely:\n\n"${text}"` }]
+      }]
+    });
+    return { context: response.text };
   } catch (error: any) {
     log.error({ error }, 'Failed to extract context');
     return { context: null, error: error.message || 'Extraction failed' };

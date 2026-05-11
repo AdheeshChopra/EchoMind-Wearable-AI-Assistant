@@ -11,7 +11,7 @@ export class MemoryRepository {
       category: string;
       importance: number;
     },
-    rawTranscript: string,
+    segments: Array<{ speakerId: string; text: string; startTime: number; endTime: number }>,
     userId: string
   ) {
     let nextActionDate: Date | null = null;
@@ -31,14 +31,14 @@ export class MemoryRepository {
         sourceType: 'voice',
         nextActionDate,
         segments: {
-          create: {
-            speakerId: 'Speaker 0',
-            text: rawTranscript,
-            startTime: 0,
-            endTime: 0
+          createMany: {
+            data: segments
           }
         }
       },
+      include: {
+        segments: true
+      }
     });
 
     // 2. Generate embedding for title + summary
@@ -79,8 +79,9 @@ export class MemoryRepository {
           category, 
           importance, 
           "createdAt",
+          (SELECT json_agg(s.*) FROM "TranscriptSegment" s WHERE s."memoryId" = m.id) as segments,
           1 - (embedding <=> ${embeddingString}::vector) as similarity
-        FROM "Memory"
+        FROM "Memory" m
         WHERE embedding IS NOT NULL
         ORDER BY embedding <=> ${embeddingString}::vector ASC
         LIMIT ${limit}

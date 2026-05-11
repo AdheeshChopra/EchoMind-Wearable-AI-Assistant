@@ -51,7 +51,7 @@ export interface StructuredMemory {
   };
 
   // Metadata
-  sourceType: 'voice' | 'text' | 'import';
+  sourceType: 'voice' | 'text' | 'import' | 'meeting';
   timestamp: number;
   processingDurationMs?: number;
 }
@@ -63,7 +63,7 @@ export interface StructuredMemory {
  */
 export function buildPreMemory(
   transcript: string,
-  sourceType: 'voice' | 'text' | 'import' = 'voice',
+  sourceType: 'voice' | 'text' | 'import' | 'meeting' = 'voice',
 ): StructuredMemory {
   const startTime = Date.now();
   const langResult = detectLanguage(transcript);
@@ -180,7 +180,6 @@ export function toPrismaData(memory: StructuredMemory, userId: string) {
     summary: memory.summary,
     category: memory.category,
     importance: memory.importance,
-    rawTranscript: memory.transcript,
     sourceType: memory.sourceType,
     language: memory.language,
     tags: memory.tags,

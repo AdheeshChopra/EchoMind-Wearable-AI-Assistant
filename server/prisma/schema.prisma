@@ -51,6 +51,8 @@ model Memory {
   tags           String[]  @default([])
   nextActionDate DateTime?
   sourceType     String    @default("audio")
+  googleDocUrl   String?
+  metadata       Json?     @default("{}")
   embedding      Unsupported("vector(3072)")?
   deletedAt      DateTime?
   createdAt      DateTime  @default(now())

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+
 :root {
   --background: #0a0a0f;
   --foreground: #fcf8fe;
@@ -27,9 +28,6 @@ body {
   min-height: 100dvh;
 }
 
-/* ═══════════════════════════════════════
-   LIQUID SVG MESH BACKGROUND
-   ═══════════════════════════════════════ */
 .liquid-mesh {
   position: fixed;
   inset: 0;
@@ -70,9 +68,6 @@ body {
   to { transform: rotate(360deg) scale(1.1); }
 }
 
-/* ═══════════════════════════════════════
-   GLASSMORPHISM 2.0
-   ═══════════════════════════════════════ */
 @layer utilities {
   .glass {
     background: rgba(255, 255, 255, 0.03);
@@ -91,7 +86,6 @@ body {
     border-radius: 32px;
   }
 
-  /* Mobile Touch Refinements */
   .no-tap-highlight {
     -webkit-tap-highlight-color: transparent;
   }
@@ -109,7 +103,6 @@ body {
     border-radius: 20px;
   }
 
-  /* ── Typography ── */
   .text-display {
     font-family: var(--font-manrope);
     letter-spacing: -0.02em;

@@ -8,7 +8,7 @@ const memoryController = new MemoryController();
 const reminderController = new ReminderController();
 
 router.get('/memories', memoryController.getMemories);
-router.get('/memories/semantic-search', memoryController.semanticSearch);
+router.get('/memories/search', memoryController.search);
 router.post('/memories/:id/retry', memoryController.retryExtraction);
 
 // Reminders

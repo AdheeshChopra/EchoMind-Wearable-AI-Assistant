@@ -48,6 +48,8 @@ export interface Memory {
   importance: number;
   sourceType: 'voice' | 'text' | 'import' | 'meeting';
   tags: string[];
+  googleDocUrl?: string | null;
+  metadata?: any;
   nextActionDate: Date | null;
   conversationId: string | null;
   deletedAt: Date | null;

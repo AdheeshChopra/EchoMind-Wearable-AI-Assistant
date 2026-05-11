@@ -71,6 +71,13 @@ export interface WSMemorySaved extends WSMessage<'MEMORY_SAVED'> {
     category: string;
     importance: number;
     language?: string;
+    segments?: {
+      id: string;
+      text: string;
+      speakerId: string;
+      startTime: number;
+      endTime: number;
+    }[];
   };
   reminder?: {
     id: string;

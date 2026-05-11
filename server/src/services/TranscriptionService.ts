@@ -1,8 +1,9 @@
 import { Readable } from 'stream';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { env } from '../config/env.js';
+import { CONSTANTS } from '../config/constants.js';
 
-const genAI = new GoogleGenerativeAI(env.GOOGLE_API_KEY);
+const ai = new GoogleGenAI({ apiKey: env.GOOGLE_API_KEY });
 
 export interface TranscriptionResult {
     text: string;
@@ -27,24 +28,33 @@ export class TranscriptionService {
 
     async transcribeBuffer(
         audioBuffer: Buffer,
-        correlationId: string,
-        model: string = 'gemini-2.5-flash'
+        correlationId: string
     ): Promise<TranscriptionResult> {
         console.log(`[TranscriptionService] [${correlationId}] Sending ${audioBuffer.length} bytes to Gemini for transcription...`);
         try {
-            const geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-            
             const prompt = "Please transcribe this audio exactly as spoken. Return ONLY the transcribed text. Do not add any formatting, quotes, or commentary.";
             
-            const audioPart = {
-                inlineData: {
-                    data: audioBuffer.toString('base64'),
-                    mimeType: 'audio/wav'
-                }
-            };
+            const response = await ai.models.generateContent({
+                model: CONSTANTS.GEMINI_MODEL,
+                contents: [
+                    {
+                        parts: [
+                            { text: prompt },
+                            {
+                                inlineData: {
+                                    data: audioBuffer.toString('base64'),
+                                    mimeType: 'audio/wav'
+                                }
+                            }
+                        ]
+                    }
+                ]
+            });
             
-            const result = await geminiModel.generateContent([prompt, audioPart]);
-            const text = result.response.text().trim();
+            const text = response.text?.trim() || '';
+            if (!text) {
+                throw new Error('Gemini returned empty transcription');
+            }
             
             console.log(`[TranscriptionService] [${correlationId}] Transcription successful: "${text.substring(0, 50)}..."`);
             return { text };

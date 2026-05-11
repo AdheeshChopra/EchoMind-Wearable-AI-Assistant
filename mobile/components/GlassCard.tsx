@@ -5,6 +5,7 @@ import { BlurView } from 'expo-blur';
 export interface GlassCardProps extends ViewProps {
   intensity?: number;
   tint?: 'light' | 'dark' | 'default';
+  className?: string;
   blurClassName?: string;
 }
 

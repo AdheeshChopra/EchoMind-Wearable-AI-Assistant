@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import { env } from './config/env.js';
 import { requestLogger } from './middleware/request-logger.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { rateLimiter } from './middleware/rate-limiter.js';
@@ -19,7 +20,7 @@ export function createApp() {
   // ─── Security ───────────────────────────────────────────────
   app.use(helmet());
   app.use(cors({
-    origin: process.env.CORS_ORIGIN || '*',
+    origin: env.CORS_ORIGIN,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-Id'],
     credentials: true,

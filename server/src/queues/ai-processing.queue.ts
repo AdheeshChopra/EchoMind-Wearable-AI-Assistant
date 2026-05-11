@@ -42,78 +42,113 @@ export const aiProcessingWorker = createWorker<AIProcessingJobData>(
   CONSTANTS.QUEUE_NAMES.AI_PROCESSING,
   async (job: Job<AIProcessingJobData>) => {
     const { userId, transcript, filePath, sourceType, language, correlationId } = job.data;
-    log.info({ userId, language, correlationId, jobId: job.id, filePath }, 'Processing transcript');
+    const jobId = job.id;
+    log.info({ userId, language, correlationId, jobId, filePath, sourceType }, 'Starting AI processing job');
 
-    let segments: Array<{ speakerId: string; text: string; startTime: number; endTime: number }> = [];
-    let processingTranscript = transcript || '';
+    try {
+      let segments: Array<{ speakerId: string; text: string; startTime: number; endTime: number }> = [];
+      let processingTranscript = transcript || '';
 
-    // 1. Handle diarization if filePath is provided
-    if (filePath && (sourceType === 'voice' || sourceType === 'meeting')) {
-      try {
-        segments = await deepgramService.transcribeFile(filePath, language || 'en');
-        processingTranscript = segments.map(s => `[${s.speakerId}] ${s.text}`).join('\n');
-      } finally {
-        // Cleanup local file after transcription
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-          log.info({ filePath }, 'Local audio file cleaned up');
+      // 1. Handle diarization if filePath is provided
+      if (filePath && (sourceType === 'voice' || sourceType === 'meeting')) {
+        try {
+          segments = await deepgramService.transcribeFile(filePath, language || 'en');
+          processingTranscript = segments.map(s => `[${s.speakerId}] ${s.text}`).join('\n');
+          log.info({ userId, jobId, segmentCount: segments.length }, 'Deepgram transcription successful');
+        } catch (error) {
+          log.error({ userId, jobId, error, filePath }, 'Deepgram transcription failed');
+          throw new Error(`Transcription stage failed: ${error instanceof Error ? error.message : String(error)}`);
+        } finally {
+          // Cleanup local file after transcription (ensure this happens even on failure)
+          if (fs.existsSync(filePath)) {
+            try {
+              fs.unlinkSync(filePath);
+              log.info({ userId, jobId, filePath }, 'Local audio file cleaned up');
+            } catch (cleanupErr) {
+              log.warn({ userId, jobId, cleanupErr, filePath }, 'Failed to cleanup local audio file');
+            }
+          }
+        }
+      } else if (transcript) {
+        segments = [{ speakerId: 'Speaker 0', text: transcript, startTime: 0, endTime: 0 }];
+      }
+
+      if (!processingTranscript || processingTranscript.trim().length === 0) {
+        log.warn({ userId, jobId, correlationId }, 'No transcript text available for processing');
+        return;
+      }
+
+      // 2. AI memory extraction (from combined transcript)
+      log.info({ userId, jobId, textLength: processingTranscript.length }, 'Extracting memory via Gemini');
+      const extraction = await extractMemory(processingTranscript);
+      if (!extraction) {
+        log.error({ userId, jobId, correlationId }, 'Gemini memory extraction failed (returned null)');
+        throw new Error('AI extraction stage failed: Gemini returned null');
+      }
+
+      // 3. Special handling for Meeting Mode (extract insights before saving)
+      let metadata = {};
+      if (sourceType === 'meeting') {
+        try {
+          log.info({ userId, jobId }, 'Extracting meeting insights');
+          const insights = await extractMeetingInsights(processingTranscript);
+          if (insights) {
+            metadata = { meetingInsights: insights };
+            log.info({ userId, jobId, correlationId }, 'Meeting insights extracted successfully');
+          }
+        } catch (err) {
+          // Non-fatal error: log and continue
+          log.error({ userId, jobId, err }, 'Meeting insights extraction failed (non-fatal)');
         }
       }
-    } else if (transcript) {
-      segments = [{ speakerId: 'Speaker 0', text: transcript, startTime: 0, endTime: 0 }];
-    }
 
-    if (!processingTranscript) {
-      log.warn({ correlationId }, 'No transcript or audio provided');
-      return;
-    }
+      // 4. Save memory with relational segments and metadata
+      log.info({ userId, jobId }, 'Saving memory to database');
+      const memory = await memoryService.saveFromExtraction(userId, extraction, segments, sourceType, metadata);
 
-    // 2. AI memory extraction (from combined transcript)
-    const extraction = await extractMemory(processingTranscript);
-    if (!extraction) {
-      log.warn({ correlationId }, 'AI extraction returned null');
-      return;
-    }
-
-    // 3. Save memory with relational segments
-    const memory = await memoryService.saveFromExtraction(userId, extraction, segments, sourceType);
-
-    // 3. Enqueue embedding generation
-    await enqueueEmbedding({
-      memoryId: memory.id,
-      title: extraction.title,
-      summary: extraction.summary,
-    });
-
-    // 4. Save reminder if extracted
-    if (extraction.reminder) {
-      const parsed = ReminderExtractionSchema.safeParse(extraction.reminder);
-      if (parsed.success) {
-        await ReminderService.createReminder(userId, memory.id, parsed.data);
-      }
-    }
-
-    // 5. Special handling for Meeting Mode
-    if (sourceType === 'meeting') {
+      // 5. Enqueue embedding generation
       try {
-        const insights = await extractMeetingInsights(processingTranscript);
-        if (insights) {
-          log.info({ memoryId: memory.id }, 'Extracted meeting insights (stored in memory)');
-          // Future: Add more meeting-specific logic here if needed
-        }
-      } catch (err) {
-        log.error({ err, memoryId: memory.id }, 'Meeting post-processing failed');
+        await enqueueEmbedding({
+          memoryId: memory.id,
+          title: extraction.title,
+          summary: extraction.summary,
+        });
+        log.info({ userId, jobId, memoryId: memory.id }, 'Embedding generation enqueued');
+      } catch (embErr) {
+        log.error({ userId, jobId, memoryId: memory.id, embErr }, 'Failed to enqueue embedding generation');
+        // Non-fatal for this worker, but should be tracked
       }
-    }
 
-    // Store result in job return value for WS notification
-    return {
-      memoryId: memory.id,
-      title: extraction.title,
-      summary: extraction.summary,
-      category: extraction.category,
-      importance: extraction.importance
-    };
+      // 6. Save reminder if extracted
+      if (extraction.reminder) {
+        try {
+          const parsed = ReminderExtractionSchema.safeParse(extraction.reminder);
+          if (parsed.success) {
+            await ReminderService.createReminder(userId, memory.id, parsed.data);
+            log.info({ userId, jobId, memoryId: memory.id }, 'Reminder created successfully');
+          } else {
+            log.warn({ userId, jobId, errors: parsed.error.errors }, 'Extracted reminder failed validation');
+          }
+        } catch (remErr) {
+          log.error({ userId, jobId, remErr }, 'Failed to save extracted reminder');
+        }
+      }
+
+      log.info({ userId, jobId, memoryId: memory.id }, 'AI processing job completed successfully');
+
+      // Store result in job return value for WS notification
+      return {
+        memoryId: memory.id,
+        title: extraction.title,
+        summary: extraction.summary,
+        category: extraction.category,
+        importance: extraction.importance
+      };
+    } catch (fatalError) {
+      log.error({ userId, jobId, fatalError, correlationId }, 'AI processing job failed FATALLY');
+      // Re-throw to allow BullMQ to handle retries/failure state
+      throw fatalError;
+    }
   },
   3, // Concurrency: 3 parallel AI jobs
 );

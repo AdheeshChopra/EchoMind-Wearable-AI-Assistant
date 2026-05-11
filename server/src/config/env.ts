@@ -10,6 +10,10 @@ const envSchema = z.object({
   // Server
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.string().default('8080'),
+  CORS_ORIGIN: z.string().default('*'),
+
+  // Process Type (Render)
+  PROCESS_TYPE: z.enum(['web', 'worker', 'all']).default('all'),
 
   // Database
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
@@ -19,9 +23,6 @@ const envSchema = z.object({
 
   // AI
   GOOGLE_API_KEY: z.string().min(1, 'Google API Key is required'),
-
-  // STT
-  WHISPER_URL: z.string().default('http://localhost:8000'),
 
   // Auth
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),

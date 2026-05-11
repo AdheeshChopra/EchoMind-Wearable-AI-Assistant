@@ -1,7 +1,9 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
+import { CONSTANTS } from '../config/constants.js';
+import { env } from '../config/env.js';
 
 const ai = new GoogleGenAI({ 
-  apiKey: process.env.GOOGLE_API_KEY 
+  apiKey: env.GOOGLE_API_KEY 
 });
 
 const SYSTEM_INSTRUCTIONS = `You are a high-speed memory sorting engine. Analyze the provided transcript.
@@ -12,15 +14,25 @@ JSON Schema: { "title": "string", "summary": "string", "category": "Task|Fact|Id
 export async function sortMemory(transcript: string) {
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: transcript,
+      model: CONSTANTS.GEMINI_MODEL,
+      contents: [{ role: 'user', parts: [{ text: transcript }] }],
       config: {
         systemInstruction: SYSTEM_INSTRUCTIONS,
         responseMimeType: 'application/json',
+        responseJsonSchema: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING },
+            summary: { type: Type.STRING },
+            category: { type: Type.STRING, description: 'Task, Fact, or Idea' },
+            importance: { type: Type.NUMBER }
+          },
+          required: ['title', 'summary', 'category', 'importance']
+        }
       }
     });
 
-    const outputText = response.text?.trim();
+    const outputText = response.text?.trim() || '';
     if (!outputText || outputText === 'NULL') {
       return null;
     }

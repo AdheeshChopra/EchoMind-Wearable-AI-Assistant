@@ -11,7 +11,13 @@ interface Memory {
   id: string;
   title: string;
   summary: string;
-  rawTranscript: string;
+  segments: {
+    id: string;
+    text: string;
+    speakerId: string;
+    startTime: number;
+    endTime: number;
+  }[];
   category: string;
   importance: number;
   createdAt: string;

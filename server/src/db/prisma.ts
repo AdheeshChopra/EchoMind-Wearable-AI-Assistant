@@ -22,7 +22,14 @@ try {
   }, 'Instantiating Prisma with Neon adapter');
 
   // Use the Neon Serverless Pool (connects via HTTPS/WebSocket on port 443)
-  const pool = new Pool({ connectionString });
+  // We limit the pool size to avoid exhausting Neon connections on smaller plans
+  const pool = new Pool({ 
+    connectionString,
+    max: 10, // Max concurrent connections
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+  });
+  
   const adapter = new PrismaPg(pool as any);
 
   prisma = new PrismaClient({

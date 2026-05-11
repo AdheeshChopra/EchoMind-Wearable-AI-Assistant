@@ -270,6 +270,7 @@ async function handleTextTranscript(
         category: memory.category,
         importance: memory.importance,
         language: langResult.language,
+        segments: (memory as any).segments,
       },
       reminder,
     };

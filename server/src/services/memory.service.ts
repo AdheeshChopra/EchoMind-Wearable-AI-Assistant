@@ -21,6 +21,7 @@ export class MemoryService {
     extraction: MemoryExtraction,
     segments: Array<{ speakerId: string; text: string; startTime: number; endTime: number }> = [],
     sourceType: 'voice' | 'text' | 'import' | 'meeting' = 'voice',
+    metadata: any = {}
   ) {
     let nextActionDate: Date | null = null;
     if (extraction.category === 'Task') {
@@ -43,6 +44,7 @@ export class MemoryService {
         sourceType,
         language: langResult.language,
         tags: extraction.tags || [],
+        metadata,
         nextActionDate,
         segments: {
           createMany: {
@@ -50,6 +52,9 @@ export class MemoryService {
           }
         }
       },
+      include: {
+        segments: true
+      }
     });
 
     // 2. Generate and store embedding (non-blocking for the caller)
@@ -77,7 +82,10 @@ export class MemoryService {
       orderBy: { createdAt: 'desc' },
       take: options?.limit || 50,
       skip: options?.offset || 0,
-      include: { reminders: true },
+      include: { 
+        reminders: true,
+        segments: true
+      },
     });
   }
 
@@ -87,7 +95,10 @@ export class MemoryService {
   async getById(userId: string, memoryId: string) {
     return prisma.memory.findFirst({
       where: { id: memoryId, userId, deletedAt: null },
-      include: { reminders: true },
+      include: { 
+        reminders: true,
+        segments: true
+      },
     });
   }
 

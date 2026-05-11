@@ -102,7 +102,7 @@ export default function DetailScreen() {
           <Text style={styles.summaryText}>{memory.summary}</Text>
 
           {/* Transcript */}
-          {memory.rawTranscript && (
+          {memory.segments && memory.segments.length > 0 && (
             <>
               <View style={styles.divider} />
               <View style={styles.transcriptHeader}>
@@ -110,7 +110,9 @@ export default function DetailScreen() {
                 <Text style={styles.sectionLabel}>Original Transcript</Text>
               </View>
               <View style={styles.transcriptBox}>
-                <Text style={styles.transcriptText}>"{memory.rawTranscript}"</Text>
+                <Text style={styles.transcriptText}>
+                  "{memory.segments.map((s: any) => s.text).join(' ')}"
+                </Text>
               </View>
             </>
           )}

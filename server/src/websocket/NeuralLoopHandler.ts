@@ -72,7 +72,7 @@ export function setupNeuralLoop(wss: WebSocketServer) {
 
           extractMemory(transcript).then(async (memoryAnalysis) => {
             if (memoryAnalysis) {
-              const savedMemory = await memoryRepo.saveExtractedMemory(memoryAnalysis, transcript, PLACEHOLDER_USER_ID);
+              const savedMemory = await memoryRepo.saveExtractedMemory(memoryAnalysis, [{ speakerId: 'Speaker 0', text: transcript, startTime: 0, endTime: 0 }], PLACEHOLDER_USER_ID);
               
               let savedReminder = null;
               if (memoryAnalysis.reminder) {
@@ -107,7 +107,7 @@ export function setupNeuralLoop(wss: WebSocketServer) {
             isTranscribingPartial = true;
             try {
               // Peek the buffer for partial transcription with tiny model
-              const partialResult = await transcriptionService.transcribeBuffer(audioBuffer, correlationId, 'tiny.en');
+              const partialResult = await transcriptionService.transcribeBuffer(audioBuffer, correlationId);
               if (partialResult && partialResult.text) {
                 ws.send(JSON.stringify({ type: 'PARTIAL_TRANSCRIPT', text: partialResult.text }));
               }
@@ -167,7 +167,7 @@ export function setupNeuralLoop(wss: WebSocketServer) {
                 logger.info(`[INTEL] Memory Classified as: ${memoryAnalysis.category.toUpperCase()} | Importance: ${importanceLabel}`);
 
                 const saveStartTime = performance.now();
-                const savedMemory = await memoryRepo.saveExtractedMemory(memoryAnalysis, transcript, PLACEHOLDER_USER_ID);
+                const savedMemory = await memoryRepo.saveExtractedMemory(memoryAnalysis, [{ speakerId: 'Speaker 0', text: transcript, startTime: 0, endTime: 0 }], PLACEHOLDER_USER_ID);
                 
                 let savedReminder = null;
                 if (memoryAnalysis.reminder) {
